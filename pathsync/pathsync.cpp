@@ -79,6 +79,7 @@ int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos,m_comparing_pos2;
 HWND m_listview;
 char m_inifile[2048];
+char m_lastsettingsfile[2048];
 
 #define CLEARPTRLIST(xxx) { int x; for (x = 0; x < xxx.GetSize(); x ++) { delete xxx.Get(x); } xxx.Empty(); }
 
@@ -169,6 +170,38 @@ void calcStats(HWND hwndDlg)
   strcat(buf," (select and right click items to change their actions)");
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
   m_total_copy_size=totalbytescopy.QuadPart;
+}
+
+void set_current_settings_file(HWND hwndDlg, char *fn)
+{
+  lstrcpyn(m_lastsettingsfile,fn,sizeof(m_lastsettingsfile));
+
+  char buf[4096];
+  char *p=fn;
+  while (*p) p++;
+  while (p >= fn && *p != '\\' && *p != '/') p--;
+  sprintf(buf,"PathSync " PATHSYNC_VER " - Analysis - %s",p+1);
+  SetWindowText(hwndDlg,buf);
+}
+
+void stopAnalyzeAndClearList(HWND hwndDlg)
+{
+  if (m_comparing)
+  {
+    KillTimer(hwndDlg,32);
+    SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
+    SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Stopped");
+    m_comparing=0;
+    EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
+    EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
+    EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
+    EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
+    EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
+  }
+  clearFileLists(hwndDlg);
+  SetDlgItemText(hwndDlg,IDC_STATS,"");
+  SetDlgItemText(hwndDlg,IDC_STATUS,"");
+  EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
 }
 
 
@@ -272,13 +305,70 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_CLOSE:
       EndDialog(hwndDlg,1);
     break;
+    case WM_DROPFILES:
+      {
+        HDROP hDrop=(HDROP)wParam;
+        char buf[4096];
+        if (DragQueryFile(hDrop,0,buf,sizeof(buf))>4)
+        {
+          if (!stricmp(buf+strlen(buf)-4,".pss"))
+          {
+              stopAnalyzeAndClearList(hwndDlg);
+              load_settings(hwndDlg,"pathsync settings",buf);
+              set_current_settings_file(hwndDlg,buf);
+          }
+        }
+        DragFinish(hDrop);
+      }
+    break;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
         // todo: drag&drop, shell integration
         case IDM_LOAD_SYNC_SETTINGS:
+          {
+            char cpath[MAX_PATH*2];
+            char temp[4096];
+            OPENFILENAME l={sizeof(l),};
+            strcpy(temp,m_lastsettingsfile);
+            l.hwndOwner = hwndDlg;
+            l.lpstrFilter = "PathSync Sync Setting files (*.PSS)\0*.PSS\0\0";
+            l.lpstrFile = temp;
+            l.nMaxFile = sizeof(temp)-1;
+            l.lpstrTitle = "Choose Synchronization Settings File";
+            l.lpstrDefExt = "PSS";
+            GetCurrentDirectory(MAX_PATH*2,cpath);
+            l.lpstrInitialDir=cpath;
+            l.Flags = OFN_HIDEREADONLY|OFN_EXPLORER;
+            if (GetOpenFileName(&l)) 
+            {
+              stopAnalyzeAndClearList(hwndDlg);
+              load_settings(hwndDlg,"pathsync settings",temp);
+              set_current_settings_file(hwndDlg,temp);
+            }
+          }
         break;
         case IDM_SAVE_SYNC_SETTINGS:
+          {
+            char cpath[MAX_PATH*2];
+            char temp[4096];
+            strcpy(temp,m_lastsettingsfile);
+            OPENFILENAME l={sizeof(l),};
+            l.hwndOwner = hwndDlg;
+            l.lpstrFilter = "PathSync Sync Setting files (*.PSS)\0*.PSS\0\0";
+            l.lpstrFile = temp;
+            l.nMaxFile = sizeof(temp)-1;
+            l.lpstrTitle = "Save Synchronization Settings to:";
+            l.lpstrDefExt = "PSS";
+            GetCurrentDirectory(MAX_PATH*2,cpath);
+            l.lpstrInitialDir=cpath;
+            l.Flags = OFN_HIDEREADONLY|OFN_EXPLORER;
+            if (GetSaveFileName(&l)) 
+            {
+              save_settings(hwndDlg,"pathsync settings",temp);
+              set_current_settings_file(hwndDlg,temp);
+            }
+          }
         break;
         case IDM_ABOUT:
           MessageBox(hwndDlg,"PathSync " PATHSYNC_VER "\r\nCopyright (C) 2004-2005, Cockos Inc.\r\n"
@@ -303,6 +393,12 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
         case IDM_EXIT:
           PostMessage(hwndDlg,WM_CLOSE,0,0);
+        break;
+        case IDC_DEFBEHAVIOR:
+          if (HIWORD(wParam) == CBN_SELCHANGE)
+          {
+            stopAnalyzeAndClearList(hwndDlg);
+          }
         break;
         case IDC_ANALYZE:
           if (m_comparing)
