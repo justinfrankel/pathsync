@@ -101,19 +101,19 @@ SOURCE=.\pathsync.cpp
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=..\GFC\dirscan.h
+SOURCE=..\WDL\dirscan.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\GFC\heapbuf.h
+SOURCE=..\WDL\heapbuf.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\GFC\ptrlist.h
+SOURCE=..\WDL\ptrlist.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\GFC\string.h
+SOURCE=..\WDL\string.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

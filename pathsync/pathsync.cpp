@@ -7,9 +7,9 @@
 
 #include "resource.h"
 
-#include "../gfc/ptrlist.h"
-#include "../gfc/string.h"
-#include "../gfc/dirscan.h"
+#include "../WDL/ptrlist.h"
+#include "../WDL/string.h"
+#include "../WDL/dirscan.h"
 
 HINSTANCE g_hInstance;
 
@@ -25,7 +25,7 @@ public:
   dirItem() { refcnt=0; }
   ~dirItem() { }
 
-  GFC_String relativeFileName;
+  WDL_String relativeFileName;
   ULARGE_INTEGER fileSize;
   FILETIME lastWriteTime;
 
@@ -33,12 +33,12 @@ public:
 
 };
 
-GFC_PtrList<GFC_String> m_dirscanlist[2];
-GFC_DirScan m_curscanner[2];
-GFC_String m_curscanner_relpath[2],m_curscanner_basepath[2];
+WDL_PtrList<WDL_String> m_dirscanlist[2];
+WDL_DirScan m_curscanner[2];
+WDL_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 
-GFC_PtrList<dirItem> m_files[2];
-GFC_PtrList<dirItem> m_listview_recs;
+WDL_PtrList<dirItem> m_files[2];
+WDL_PtrList<dirItem> m_listview_recs;
 
 int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos,m_comparing_pos2;
@@ -377,7 +377,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   {
                     if (m_curscanner[x].GetCurrentIsDirectory())
                     {
-                      GFC_String *s=new GFC_String(m_curscanner_relpath[x].Get());
+                      WDL_String *s=new WDL_String(m_curscanner_relpath[x].Get());
                       if (m_curscanner_relpath[x].Get()[0]) s->Append("\\");
                       s->Append(ptr);
                       m_dirscanlist[x].Add(s);
@@ -394,7 +394,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                       m_files[x].Add(di);
 
-                      GFC_String str2("Scanning file: ");
+                      WDL_String str2("Scanning file: ");
                       str2.Append(di->relativeFileName.Get());
                       str2.Append("\n");
                       SetDlgItemText(hwndDlg,IDC_STATUS,str2.Get());
@@ -410,12 +410,12 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     while (m_dirscanlist[x].GetSize()>0 && !success)
                     {
                       int i=m_dirscanlist[x].GetSize()-1;
-                      GFC_String *str=m_dirscanlist[x].Get(i);
+                      WDL_String *str=m_dirscanlist[x].Get(i);
                       m_curscanner_relpath[x].Set(str->Get());
                       m_dirscanlist[x].Delete(i);
                       delete str;
 
-                      GFC_String s(m_curscanner_basepath[x].Get());
+                      WDL_String s(m_curscanner_basepath[x].Get());
                       s.Append("\\");
                       s.Append(m_curscanner_relpath[x].Get());
                       if (!m_curscanner[x].First(s.Get())) success++;
@@ -658,7 +658,7 @@ class fileCopier
       m_srcFile = CreateFile(src,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,NULL);
       if (m_srcFile == INVALID_HANDLE_VALUE)
       {
-        GFC_String tmp("Error opening source: ");
+        WDL_String tmp("Error opening source: ");
         tmp.Append(src);
 
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
@@ -666,7 +666,7 @@ class fileCopier
       }
 
       {
-        GFC_String tmp(dest);
+        WDL_String tmp(dest);
         char *p=tmp.Get();
         if (*p) 
         {
@@ -690,7 +690,7 @@ class fileCopier
       m_dstFile = CreateFile(m_tmpdestfn.Get(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,0,NULL);
       if (m_dstFile == INVALID_HANDLE_VALUE)
       {
-        GFC_String tmp("Error opening tmpdest: ");
+        WDL_String tmp("Error opening tmpdest: ");
         tmp.Append(m_tmpdestfn.Get());
 
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
@@ -713,7 +713,7 @@ class fileCopier
       DWORD r;
       if (!ReadFile(m_srcFile,buf,sizeof(buf),&r,NULL))
       {
-        GFC_String tmp("Error reading: ");
+        WDL_String tmp("Error reading: ");
         tmp.Append(m_relfn.Get());
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
         return -1;
@@ -727,7 +727,7 @@ class fileCopier
         DWORD or;
         if (!WriteFile(m_dstFile,buf,r,&or,NULL) || or != r)
         {
-          GFC_String tmp("Error writing to: ");
+          WDL_String tmp("Error writing to: ");
           tmp.Append(m_relfn.Get());
           SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
           return -1;
@@ -764,7 +764,7 @@ class fileCopier
         CloseHandle(m_dstFile); m_dstFile=INVALID_HANDLE_VALUE;
 
 
-        GFC_String destSave(m_fulldestfn.Get());
+        WDL_String destSave(m_fulldestfn.Get());
         destSave.Append(".PSYN_OLD");
         int err=0;
 
@@ -787,7 +787,7 @@ class fileCopier
 
         if (err)
         {
-          GFC_String tmp("Error finalizing: ");
+          WDL_String tmp("Error finalizing: ");
           tmp.Append(m_relfn.Get());
           SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
           return -1;
@@ -812,9 +812,9 @@ class fileCopier
       
     }
 
-    GFC_String m_tmpdestfn;
+    WDL_String m_tmpdestfn;
 
-    GFC_String m_fullsrcfn, m_fulldestfn, m_relfn;
+    WDL_String m_fullsrcfn, m_fulldestfn, m_relfn;
     __int64 m_filepos;
     ULARGE_INTEGER m_filesize;
     HANDLE m_srcFile, m_dstFile;
@@ -933,7 +933,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   (isSend && !strcmp(status,REMOTE_ONLY_STR)))
               {
                 SetDlgItemText(hwndDlg,IDC_SRC,"<delete>");
-                GFC_String gs;
+                WDL_String gs;
                 gs.Set(m_curscanner_basepath[!isRecv].Get());
                 gs.Append("\\");
                 gs.Append(filename);
@@ -941,7 +941,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (!DeleteFile(gs.Get()))
                 {
-                  GFC_String news("Error removing");
+                  WDL_String news("Error removing");
                   news.Append(isRecv ? " local file: " : " remote file: ");
                   news.Append(filename);
                   SendDlgItemMessage(hwndDlg,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)news.Get());
@@ -951,13 +951,13 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               }
               else if (isRecv || isSend)
               {
-                GFC_String gs;
+                WDL_String gs;
                 gs.Set(m_curscanner_basepath[!!isRecv].Get());
                 gs.Append("\\");
                 gs.Append(filename);
                 SetDlgItemText(hwndDlg,IDC_SRC,gs.Get());
 
-                GFC_String outgs;
+                WDL_String outgs;
                 outgs.Set(m_curscanner_basepath[!isRecv].Get());
                 outgs.Append("\\");
                 outgs.Append(filename);
