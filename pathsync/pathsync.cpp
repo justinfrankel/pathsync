@@ -171,6 +171,42 @@ void calcStats(HWND hwndDlg)
   m_total_copy_size=totalbytescopy.QuadPart;
 }
 
+
+void load_settings(HWND hwndDlg, char *sec, char *fn)
+{
+  char path[2048];
+  GetPrivateProfileString(sec,"path1","",path,sizeof(path),fn);
+  SetDlgItemText(hwndDlg,IDC_PATH1,path);
+  GetPrivateProfileString(sec,"path2","",path,sizeof(path),fn);
+  SetDlgItemText(hwndDlg,IDC_PATH2,path);
+  int ignflags=GetPrivateProfileInt(sec,"ignflags",0,fn);
+  CheckDlgButton(hwndDlg,IDC_IGNORE_SIZE,(ignflags&1)?BST_CHECKED:BST_UNCHECKED);
+  CheckDlgButton(hwndDlg,IDC_IGNORE_DATE,(ignflags&2)?BST_CHECKED:BST_UNCHECKED);
+  CheckDlgButton(hwndDlg,IDC_IGNORE_MISSLOCAL,(ignflags&4)?BST_CHECKED:BST_UNCHECKED);
+  CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
+  SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_SETCURSEL,(WPARAM)GetPrivateProfileInt(sec,"defbeh",0,fn),0);
+}
+
+
+void save_settings(HWND hwndDlg, char *sec, char *fn)
+{
+  char path[2048];
+  GetDlgItemText(hwndDlg,IDC_PATH1,path,sizeof(path));
+  WritePrivateProfileString(sec,"path1",path,fn);
+  GetDlgItemText(hwndDlg,IDC_PATH2,path,sizeof(path));
+  WritePrivateProfileString(sec,"path2",path,fn);
+  int ignflags=0;
+  if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) ignflags |= 1;
+  if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) ignflags |= 2;
+  if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) ignflags |= 4;
+  if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) ignflags |= 8;
+  wsprintf(path,"%d",ignflags);
+  WritePrivateProfileString(sec,"ignflags",path,fn);       
+  wsprintf(path,"%d",SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_GETCURSEL,0,0));
+  WritePrivateProfileString(sec,"defbeh",path,fn);
+}
+
+
 BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   static WDL_WndSizer resizer;
@@ -204,27 +240,17 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         lvc.pszText="Action";
         lvc.cx=100;
         ListView_InsertColumn(m_listview,2,&lvc);
-        {
-          char path[2048];
-          GetPrivateProfileString("config","path1","",path,sizeof(path),m_inifile);
-          SetDlgItemText(hwndDlg,IDC_PATH1,path);
-          GetPrivateProfileString("config","path2","",path,sizeof(path),m_inifile);
-          SetDlgItemText(hwndDlg,IDC_PATH2,path);
-          int ignflags=GetPrivateProfileInt("config","ignflags",0,m_inifile);
-          CheckDlgButton(hwndDlg,IDC_IGNORE_SIZE,(ignflags&1)?BST_CHECKED:BST_UNCHECKED);
-          CheckDlgButton(hwndDlg,IDC_IGNORE_DATE,(ignflags&2)?BST_CHECKED:BST_UNCHECKED);
-          CheckDlgButton(hwndDlg,IDC_IGNORE_MISSLOCAL,(ignflags&4)?BST_CHECKED:BST_UNCHECKED);
-          CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
-        }
-      }
-      {
         int x;
         for (x = 0; x < sizeof(g_syncactions) / sizeof(g_syncactions[0]); x ++)
         {
           SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_ADDSTRING,0,(LPARAM)g_syncactions[x]);
         }
-        SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_SETCURSEL,(WPARAM)GetPrivateProfileInt("config","defbeh",0,m_inifile),0);
+
       }
+
+
+
+      load_settings(hwndDlg,"config",m_inifile);
 
     return 0;
     case WM_GETMINMAXINFO:
@@ -241,22 +267,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return 0;
 
     case WM_DESTROY:
-      {
-        char path[2048];
-        GetDlgItemText(hwndDlg,IDC_PATH1,path,sizeof(path));
-        WritePrivateProfileString("config","path1",path,m_inifile);
-        GetDlgItemText(hwndDlg,IDC_PATH2,path,sizeof(path));
-        WritePrivateProfileString("config","path2",path,m_inifile);
-        int ignflags=0;
-        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) ignflags |= 1;
-        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) ignflags |= 2;
-        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) ignflags |= 4;
-        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) ignflags |= 8;
-        wsprintf(path,"%d",ignflags);
-        WritePrivateProfileString("config","ignflags",path,m_inifile);       
-        wsprintf(path,"%d",SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_GETCURSEL,0,0));
-        WritePrivateProfileString("config","defbeh",path,m_inifile);
-      }
+      save_settings(hwndDlg,"config",m_inifile);
     return 0;
     case WM_CLOSE:
       EndDialog(hwndDlg,1);
@@ -264,6 +275,14 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        // todo: drag&drop, shell integration
+        case IDM_LOAD_SYNC_SETTINGS:
+        break;
+        case IDM_SAVE_SYNC_SETTINGS:
+        break;
+        case IDM_EXIT:
+          PostMessage(hwndDlg,WM_CLOSE,0,0);
+        break;
         case IDC_ANALYZE:
           if (m_comparing)
           {

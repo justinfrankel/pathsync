@@ -29,6 +29,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 IDD_DIALOG1 DIALOG DISCARDABLE  0, 0, 464, 318
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
+MENU IDR_MENU2
 FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Analyze",IDC_ANALYZE,409,7,48,12
@@ -154,6 +155,17 @@ BEGIN
         MENUITEM "Remote->Local",               IDM_2TO1
         MENUITEM "Local->Remote",               IDM_1TO2
         MENUITEM "No Action",                   IDM_NOACTION
+    END
+END
+
+IDR_MENU2 MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Load SyncSettings...",       IDM_LOAD_SYNC_SETTINGS
+        MENUITEM "&Save SyncSettings...",       IDM_SAVE_SYNC_SETTINGS
+        MENUITEM SEPARATOR
+        MENUITEM "&Quit",                       IDM_EXIT
     END
 END
 
