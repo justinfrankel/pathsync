@@ -50,10 +50,13 @@ CAPTION "PathSync"
 FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,159,192,50,14
-    LTEXT           "Current file:",IDC_CURFILE,7,7,350,8
-    LISTBOX         IDC_LIST1,7,123,350,63,LBS_SORT | LBS_NOINTEGRALHEIGHT | 
-                    WS_VSCROLL | WS_TABSTOP
+    LTEXT           "",IDC_SRC,39,6,318,8
+    LISTBOX         IDC_LIST1,7,123,350,63,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
+                    WS_TABSTOP
     LTEXT           "Error log:",IDC_STATIC,7,112,29,8
+    LTEXT           "",IDC_DEST,39,16,318,8
+    LTEXT           "Source:",IDC_STATIC,7,6,26,8
+    LTEXT           "Dest:",IDC_STATIC,7,16,18,8
 END
 
 
@@ -77,7 +80,7 @@ BEGIN
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 357
-        TOPMARGIN, 7
+        TOPMARGIN, 6
         BOTTOMMARGIN, 206
     END
 END

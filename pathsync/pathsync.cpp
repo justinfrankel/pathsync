@@ -130,7 +130,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               // start new scan
               SetDlgItemText(hwndDlg,IDC_ANALYZE,"Stop...");
               m_comparing=1;
-              SetTimer(hwndDlg,32,200,NULL);
+              SetTimer(hwndDlg,32,50,NULL);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),0);
@@ -517,18 +517,92 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
 //////////// file copying code, eh
 
+int m_copy_entrypos;
+int m_copy_done;
+int m_copy_copyactive;
 
 BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
     case WM_INITDIALOG:
+      m_copy_copyactive=0;
+      m_copy_entrypos=-1;
+      m_copy_done=0;
+      SetTimer(hwndDlg,60,50,NULL);
+    return 0;
+    case WM_DESTROY:
+      if (m_copy_copyactive)
+      {
+        // clean up after copy
+        m_copy_copyactive=0;
+      }
+    return 0;
+    case WM_TIMER:
+      if (wParam == 60)
+      {       
+        if (m_copy_copyactive)
+        {
+          // if copy finishes, reset 
+          m_copy_copyactive=0;
+        }
+        if (!m_copy_copyactive)
+        {
+          if (++m_copy_entrypos >= ListView_GetItemCount(m_listview))
+          {
+            SetDlgItemText(hwndDlg,IDC_SRC,"");
+            SetDlgItemText(hwndDlg,IDC_DEST,"");
+            KillTimer(hwndDlg,60);
+            m_copy_done=1;
+            SetDlgItemText(hwndDlg,IDCANCEL,"Close");
+          }
+          else
+          {
+            char status[256];
+            char action[256];
+            char filename[2048];
+            ListView_GetItemText(m_listview,m_copy_entrypos,0,filename,sizeof(filename));
+            ListView_GetItemText(m_listview,m_copy_entrypos,1,status,sizeof(status));
+            ListView_GetItemText(m_listview,m_copy_entrypos,2,action,sizeof(action));
+
+            int isSend=!strcmp(action,ACTION_SEND);
+            int isRecv=!strcmp(action,ACTION_RECV);
+
+            if ((isRecv && !strcmp(status,LOCAL_ONLY_STR)) || 
+                (isSend && !strcmp(status,REMOTE_ONLY_STR)))
+            {
+              SetDlgItemText(hwndDlg,IDC_SRC,"<delete>");
+              GFC_String gs;
+              gs.Set(m_curscanner_basepath[!isRecv].Get());
+              gs.Append("\\");
+              gs.Append(filename);
+              SetDlgItemText(hwndDlg,IDC_DEST,gs.Get());
+            }
+            else if (isRecv || isSend)
+            {
+              GFC_String gs;
+              gs.Set(m_curscanner_basepath[!!isRecv].Get());
+              gs.Append("\\");
+              gs.Append(filename);
+              SetDlgItemText(hwndDlg,IDC_SRC,gs.Get());
+
+              gs.Set(m_curscanner_basepath[!isRecv].Get());
+              gs.Append("\\");
+              gs.Append(filename);
+              SetDlgItemText(hwndDlg,IDC_DEST,gs.Get());
+             // SendDlgItemMessage(hwndDlg,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)gs.Get());
+            }
+
+            // start new copy
+          }
+        }
+      }
     return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
         case IDCANCEL:
-          if (MessageBox(hwndDlg,"Cancel copy?","Question",MB_YESNO)==IDYES)
+          if (m_copy_done || MessageBox(hwndDlg,"Cancel copy?","Question",MB_YESNO)==IDYES)
             EndDialog(hwndDlg,1);
         break;
       }

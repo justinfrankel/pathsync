@@ -12,8 +12,9 @@
 #define IDC_STATUS                      1004
 #define IDC_BROWSE1                     1005
 #define IDC_BROWSE2                     1006
-#define IDC_CURFILE                     1006
+#define IDC_SRC                         1006
 #define IDC_GO                          1007
+#define IDC_DEST                        1007
 #define IDM_2TO1                        40001
 #define IDM_1TO2                        40002
 #define IDM_NOACTION                    40003
