@@ -129,7 +129,7 @@ void calcStats(HWND hwndDlg)
     strcat(buf,"not perform any actions");
     EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
   }
-  else EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
+  else EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);
 
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
 }
