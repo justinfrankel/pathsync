@@ -516,8 +516,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                     ListView_SetItemText(m_listview,insertpos,1,buf);
                     ListView_SetItemText(m_listview,insertpos,2,
-                          dateMatch ? (sizedesc[0]=='R' ? ACTION_RECV:ACTION_SEND) : 
-                                       datedesc[0]=='R' ? ACTION_RECV:ACTION_SEND);
+                          dateMatch ? ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart ? ACTION_RECV:ACTION_SEND) : 
+                                       fta.QuadPart > ftb.QuadPart ? ACTION_RECV:ACTION_SEND);
                   }
                 }
 
@@ -843,7 +843,7 @@ void updateXferStatus(HWND hwndDlg)
   format_size_string(m_total_copy_size,tmp2);
   format_size_string((m_copy_bytestotalsofar * 1000) / t,tmp3);
 
-  sprintf(buf,"%d%%: %d file%s (%s/%s) copied at %s/s, %d file%s deleted.\r\nElapsed Time: %d:%02d, Time Remaining: %d:%02d",v/100,
+  sprintf(buf,"%d%% - %d file%s (%s/%s) copied at %s/s, %d file%s deleted.\r\nElapsed Time: %d:%02d, Time Remaining: %d:%02d",v/100,
     m_copy_files,m_copy_files==1?"":"s",
     tmp1,
     tmp2,
