@@ -115,12 +115,12 @@ void calcStats(HWND hwndDlg)
   {
     char tmp[128];
     format_size_string(totalbytescopy.QuadPart,tmp);
-    sprintf(buf+strlen(buf),"copy %s in %d file(s)",tmp,totalfilescopy);
+    sprintf(buf+strlen(buf),"copy %s in %d file%s",tmp,totalfilescopy,totalfilescopy==1?"":"s");
   }
   if (totalfilesdelete)
   {
     if (totalfilescopy) strcat(buf,", and ");
-    sprintf(buf+strlen(buf),"delete %d file(s)",totalfilesdelete);
+    sprintf(buf+strlen(buf),"delete %d file%s",totalfilesdelete,totalfilesdelete==1?"":"s");
   }
   m_total_copy_size=totalbytescopy.QuadPart;
 
@@ -202,7 +202,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               // start new scan
               SetDlgItemText(hwndDlg,IDC_ANALYZE,"Stop...");
               m_comparing=1;
-              SetTimer(hwndDlg,32,50,NULL);
+              SetTimer(hwndDlg,32,20,NULL);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),0);
@@ -302,8 +302,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (localonly)
                   {
                     char buf[512];
-                    wsprintf(buf,"Setting the action to Remote->Local will result in %d local file(s) being removed.\r\n"
-                                "If this is acceptable, select Yes. Otherwise, select No.",localonly);
+                    wsprintf(buf,"Setting the action to Remote->Local will result in %d local file%s being removed.\r\n"
+                        "If this is acceptable, select Yes. Otherwise, select No.",localonly,localonly==1?"":"s");
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=1;
                   }
                   else do_action_change=1;
@@ -312,8 +312,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (remoteonly)
                   { 
                     char buf[512];
-                    wsprintf(buf,"Setting the action to Local->Remote will result in %d remote file(s) being removed.\r\n"
-                                "If this is acceptable, select Yes. Otherwise, select No.",remoteonly);
+                    wsprintf(buf,"Setting the action to Local->Remote will result in %d remote file%s being removed.\r\n"
+                      "If this is acceptable, select Yes. Otherwise, select No.",remoteonly,remoteonly==1?"":"s");
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=2;
                   }
                   else do_action_change=2;
@@ -837,12 +837,12 @@ void updateXferStatus(HWND hwndDlg)
   format_size_string(m_total_copy_size,tmp2);
   format_size_string((m_copy_bytestotalsofar * 1000) / t,tmp3);
 
-  sprintf(buf,"%d%%: %d file(s) (%s/%s) copied at %s/s, %d file(s) deleted.\r\nElapsed Time: %d:%02d, Time Remaining: %d:%02d",v/100,
-    m_copy_files,
+  sprintf(buf,"%d%%: %d file%s (%s/%s) copied at %s/s, %d file%s deleted.\r\nElapsed Time: %d:%02d, Time Remaining: %d:%02d",v/100,
+    m_copy_files,m_copy_files==1?"":"s",
     tmp1,
     tmp2,
     tmp3,
-    m_copy_deletes,
+    m_copy_deletes,m_copy_deletes==1?"":"s",
     t/60000,(t/1000)%60,
     (pred_t-t/1000)/60,(pred_t-t/1000)%60);
   SetDlgItemText(hwndDlg,IDC_TOTALPOS,p);
@@ -862,7 +862,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       m_copy_bytestotalsofar=0;
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,0,0);
-      SetTimer(hwndDlg,60,50,NULL);
+      SetTimer(hwndDlg,60,20,NULL);
     return 0;
     case WM_DESTROY:
       if (m_copy_curcopy)
@@ -877,7 +877,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       {       
         unsigned int start_t=GetTickCount();
         unsigned int now;
-        while ((now=GetTickCount()) - start_t < 200)
+        while ((now=GetTickCount()) - start_t < 400)
         {
           if (m_copy_curcopy && m_copy_curcopy->run(hwndDlg))
           {
