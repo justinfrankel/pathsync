@@ -111,7 +111,7 @@ void calcStats(HWND hwndDlg)
     }
   }
   char buf[512];
-  sprintf(buf,"Synchronizing will ");
+  strcpy(buf,"Synchronizing will ");
   if (totalfilescopy)
   {
     char tmp[128];
@@ -123,8 +123,7 @@ void calcStats(HWND hwndDlg)
     if (totalfilescopy) strcat(buf,", and ");
     sprintf(buf+strlen(buf),"delete %d file%s",totalfilesdelete,totalfilesdelete==1?"":"s");
   }
-  m_total_copy_size=totalbytescopy.QuadPart;
-
+  
   if (!totalfilesdelete && !totalfilescopy)
   {
     strcat(buf,"not perform any actions");
@@ -133,6 +132,7 @@ void calcStats(HWND hwndDlg)
   else EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);
 
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
+  m_total_copy_size=totalbytescopy.QuadPart;
 }
 
 BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -314,7 +314,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (localonly)
                   {
                     char buf[512];
-                    wsprintf(buf,"Setting the action to Remote->Local will result in %d local file%s being removed.\r\n"
+                    sprintf(buf,"Setting the action to Remote->Local will result in %d local file%s being removed.\r\n"
                         "If this is acceptable, select Yes. Otherwise, select No.",localonly,localonly==1?"":"s");
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=1;
                   }
@@ -324,7 +324,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (remoteonly)
                   { 
                     char buf[512];
-                    wsprintf(buf,"Setting the action to Local->Remote will result in %d remote file%s being removed.\r\n"
+                    sprintf(buf,"Setting the action to Local->Remote will result in %d remote file%s being removed.\r\n"
                       "If this is acceptable, select Yes. Otherwise, select No.",remoteonly,remoteonly==1?"":"s");
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=2;
                   }
@@ -510,7 +510,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                     char buf[512];
                     if (sizedesc && datedesc) 
-                      wsprintf(buf,"%s, %s",datedesc,sizedesc);
+                      sprintf(buf,"%s, %s",datedesc,sizedesc);
                     else
                       strcpy(buf,datedesc?datedesc:sizedesc);
 
