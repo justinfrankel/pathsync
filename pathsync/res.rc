@@ -52,7 +52,7 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,159,192,50,14
     LTEXT           "",IDC_SRC,39,6,318,8
     LISTBOX         IDC_LIST1,7,123,350,63,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
-                    WS_TABSTOP
+                    WS_HSCROLL | WS_TABSTOP
     LTEXT           "Error log:",IDC_STATIC,7,112,29,8
     LTEXT           "",IDC_DEST,39,16,318,8
     LTEXT           "Source:",IDC_STATIC,7,6,26,8

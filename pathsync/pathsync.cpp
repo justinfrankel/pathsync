@@ -230,7 +230,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (localonly)
                   {
                     char buf[512];
-                    sprintf(buf,"Setting the action to Remote->Local will result in %d local file(s) being removed.\r\n"
+                    wsprintf(buf,"Setting the action to Remote->Local will result in %d local file(s) being removed.\r\n"
                                 "If this is acceptable, select Yes. Otherwise, select No.",localonly);
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=1;
                   }
@@ -240,7 +240,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (remoteonly)
                   { 
                     char buf[512];
-                    sprintf(buf,"Setting the action to Local->Remote will result in %d remote file(s) being removed.\r\n"
+                    wsprintf(buf,"Setting the action to Local->Remote will result in %d remote file(s) being removed.\r\n"
                                 "If this is acceptable, select Yes. Otherwise, select No.",remoteonly);
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=2;
                   }
@@ -425,7 +425,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   }
                   char buf[512];
                   if (sizedesc && datedesc) 
-                    sprintf(buf,"%s, %s",datedesc,sizedesc);
+                    wsprintf(buf,"%s, %s",datedesc,sizedesc);
                   else
                     strcpy(buf,datedesc?datedesc:sizedesc);
 
@@ -518,17 +518,162 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 //////////// file copying code, eh
 
 int m_copy_entrypos;
-int m_copy_done,m_copy_deletes;
-int m_copy_copyactive;
+int m_copy_done;
+int m_copy_deletes,m_copy_files;
 __int64 m_copy_bytestotal;
+
+class fileCopier
+{
+  public:
+    fileCopier()
+    {
+      m_filepos=0;
+      m_filesize.QuadPart=0;
+      m_srcFile=m_dstFile=INVALID_HANDLE_VALUE;
+    }
+    int openFiles(char *src, char *dest, HWND hwndParent, char *relfn) // returns 1 on error
+    {
+      m_fullsrcfn.Set(src);
+      m_fulldestfn.Set(dest);
+      m_relfn.Set(relfn);
+      
+      m_srcFile = CreateFile(src,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,NULL);
+      if (m_srcFile == INVALID_HANDLE_VALUE)
+      {
+        GFC_String tmp("Error opening source: ");
+        tmp.Append(src);
+
+        SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
+        return -1;
+      }
+      m_tmpdestfn.Set(dest);
+      m_tmpdestfn.Append(".PSYN_TMP");
+      m_dstFile = CreateFile(m_tmpdestfn.Get(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,0,NULL);
+      if (m_dstFile == INVALID_HANDLE_VALUE)
+      {
+        GFC_String tmp("Error opening tmpdest: ");
+        tmp.Append(m_tmpdestfn.Get());
+
+        SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
+        return -1;
+      }
+
+      m_filesize.LowPart = GetFileSize(m_srcFile,&m_filesize.HighPart);
+      m_filepos=0;
+
+      SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
+      SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETPOS,0,0);
+      SetDlgItemText(hwndParent,IDC_FILEPOS,"Initializing...");
+
+      return 0;
+    }
+
+    int run(HWND hwndParent) // return 1 when done
+    {
+      char buf[65536];
+      DWORD r;
+      if (!ReadFile(m_srcFile,buf,sizeof(buf),&r,NULL))
+      {
+        GFC_String tmp("Error reading: ");
+        tmp.Append(m_relfn.Get());
+        SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
+        return -1;
+      }
+
+      if (r)
+      {
+        m_copy_bytestotal+=r;
+        m_filepos += r;
+        int v = 0;
+        if (m_filesize.QuadPart) v=(int) ((m_filepos * 10000) / m_filesize.QuadPart);
+        SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETPOS,(WPARAM)v,0);
+        {
+          char text[512];
+          sprintf(text,"%.2lfMB/%.2lfMB copying (%d%%)",(double) m_filepos / (1024.0 * 1024.0),
+                        (double) m_filesize.QuadPart / (1024.0 * 1024.0),v/100);
+          SetDlgItemText(hwndParent,IDC_FILEPOS,text);
+        }
+
+        DWORD or;
+        if (!WriteFile(m_dstFile,buf,r,&or,NULL) || or != r)
+        {
+          GFC_String tmp("Error writing to: ");
+          tmp.Append(m_relfn.Get());
+          SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
+          return -1;
+        }
+      }
+
+      if (r < sizeof(buf)) // eof!
+      {
+        FILETIME ft;
+        GetFileTime(m_srcFile,NULL,NULL,&ft);
+        SetFileTime(m_dstFile,NULL,NULL,&ft);
+        CloseHandle(m_srcFile); m_srcFile=INVALID_HANDLE_VALUE;
+        CloseHandle(m_dstFile); m_dstFile=INVALID_HANDLE_VALUE;
+
+
+        GFC_String destSave(m_fulldestfn.Get());
+        destSave.Append(".PSYN_OLD");
+        int err=0;
+
+        if (MoveFile(m_fulldestfn.Get(),destSave.Get()))
+        {
+          if (MoveFile(m_tmpdestfn.Get(),m_fulldestfn.Get()))
+          {
+            DeleteFile(destSave.Get());
+          }
+          else 
+          {
+            MoveFile(destSave.Get(),m_fulldestfn.Get()); // try and restore old
+            err=2;
+          }
+        }
+        else err=1;
+
+        if (err)
+        {
+          GFC_String tmp("Error finalizing: ");
+          tmp.Append(m_relfn.Get());
+          SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
+          return -1;
+        }
+
+        // close handles, delete/rename files
+        m_copy_files++;
+        return 1;
+      }
+
+      return 0;
+    }
+
+    ~fileCopier()
+    {
+      if (m_dstFile != INVALID_HANDLE_VALUE) 
+      {
+        CloseHandle(m_dstFile);
+        DeleteFile(m_tmpdestfn.Get());
+      }
+      if (m_srcFile != INVALID_HANDLE_VALUE) CloseHandle(m_srcFile);
+      
+    }
+
+    GFC_String m_tmpdestfn;
+
+    GFC_String m_fullsrcfn, m_fulldestfn, m_relfn;
+    __int64 m_filepos;
+    ULARGE_INTEGER m_filesize;
+    HANDLE m_srcFile, m_dstFile;
+};
+fileCopier *m_copy_curcopy;
 
 BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
     case WM_INITDIALOG:
-      m_copy_deletes=0;
-      m_copy_copyactive=0;
+      m_copy_deletes=m_copy_files=0;
+      m_copy_curcopy=0;
       m_copy_entrypos=-1;
       m_copy_done=0;
       m_copy_bytestotal=0;
@@ -537,21 +682,27 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       SetTimer(hwndDlg,60,50,NULL);
     return 0;
     case WM_DESTROY:
-      if (m_copy_copyactive)
+      if (m_copy_curcopy)
       {
+        delete m_copy_curcopy;
         // clean up after copy
-        m_copy_copyactive=0;
+        m_copy_curcopy=0;
       }
     return 0;
     case WM_TIMER:
       if (wParam == 60)
       {       
-        if (m_copy_copyactive)
+        unsigned int start_t=GetTickCount();
+        while (m_copy_curcopy && GetTickCount() - start_t < 200)
         {
-          // if copy finishes, reset 
-          m_copy_copyactive=0;
+          if (m_copy_curcopy->run(hwndDlg))
+          {
+            // if copy finishes, reset 
+            delete m_copy_curcopy;
+            m_copy_curcopy=0;
+          }
         }
-        if (!m_copy_copyactive)
+        if (!m_copy_curcopy)
         {
           int cnt=ListView_GetItemCount(m_listview);
           m_copy_entrypos++;
@@ -559,7 +710,8 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           {
             char buf[512];
             char *p=buf;
-            wsprintf(buf,"File %d/%d; %uMB copied, %d file(s) deleted",m_copy_entrypos,cnt,(unsigned int) (m_copy_bytestotal>>10),m_copy_deletes);
+            wsprintf(buf,"File %d/%d; %d file(s) (%uMB) copied, %d file(s) deleted",m_copy_entrypos,cnt,
+              m_copy_files,(unsigned int) (m_copy_bytestotal>>10),m_copy_deletes);
             if (m_copy_entrypos >= cnt)
             {
               while (*p && *p != ';') p ++;
@@ -616,11 +768,19 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               gs.Append(filename);
               SetDlgItemText(hwndDlg,IDC_SRC,gs.Get());
 
-              gs.Set(m_curscanner_basepath[!isRecv].Get());
-              gs.Append("\\");
-              gs.Append(filename);
-              SetDlgItemText(hwndDlg,IDC_DEST,gs.Get());
-             // SendDlgItemMessage(hwndDlg,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)gs.Get());
+              GFC_String outgs;
+              outgs.Set(m_curscanner_basepath[!isRecv].Get());
+              outgs.Append("\\");
+              outgs.Append(filename);
+              SetDlgItemText(hwndDlg,IDC_DEST,outgs.Get());
+
+              m_copy_curcopy = new fileCopier;
+              if (m_copy_curcopy->openFiles(gs.Get(),outgs.Get(),hwndDlg,filename))
+              {
+                // add error string according to x.
+                delete m_copy_curcopy;
+                m_copy_curcopy=0;
+              }
             }
 
             // start new copy
