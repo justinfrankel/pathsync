@@ -13,6 +13,11 @@
 
 HINSTANCE g_hInstance;
 
+#define ACTION_RECV "Remote->Local"
+#define ACTION_SEND "Local->Remote"
+#define ACTION_NONE "No Action"
+#define REMOTE_ONLY_STR "Remote Only"
+#define LOCAL_ONLY_STR "Local Only"
 
 class dirItem {
 
@@ -156,6 +161,105 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
       }
     break;
+    case WM_NOTIFY:
+      {
+        LPNMHDR l=(LPNMHDR)lParam;
+        if (l->idFrom == IDC_LIST1 && l->code == NM_RCLICK && !m_comparing && ListView_GetSelectedCount(m_listview))
+        {
+          HMENU h=LoadMenu(g_hInstance,MAKEINTRESOURCE(IDR_MENU1));
+          if (h)
+          {
+            HMENU h2=GetSubMenu(h,0);
+            if (h2)
+            {
+              int sel=0;
+              int localonly=0;
+              int remoteonly=0;
+
+              POINT p;
+              GetCursorPos(&p);
+
+              int y,l=ListView_GetItemCount(m_listview);
+              for (y = 0; y < l; y ++)
+              {
+                if (ListView_GetItemState(m_listview, y, LVIS_SELECTED) & LVIS_SELECTED)
+                {
+                  char buf[128];
+                  ListView_GetItemText(m_listview,y,1,buf,sizeof(buf));
+
+                  if (!strcmp(buf,LOCAL_ONLY_STR)) localonly++;
+                  else if (!strcmp(buf,REMOTE_ONLY_STR)) remoteonly++;
+
+
+                  ListView_GetItemText(m_listview,y,2,buf,sizeof(buf));
+                  //
+                  if (!strcmp(buf,ACTION_RECV)) sel|=1;
+                  else if (!strcmp(buf,ACTION_SEND)) sel|=2;
+                  else if (!strcmp(buf,ACTION_NONE)) sel|=4;
+
+                  if (sel != 0 && sel != 1 && sel != 2 && sel != 4) break;
+                }
+              }
+              if (sel == 1)
+              {
+                CheckMenuItem(h2,IDM_2TO1,MF_CHECKED);
+              }
+              if (sel == 2)
+              {
+                CheckMenuItem(h2,IDM_1TO2,MF_CHECKED);
+              }
+              if (sel == 4)
+              {
+                CheckMenuItem(h2,IDM_NOACTION,MF_CHECKED);
+              }
+
+              int do_action_change=0;
+              int x=TrackPopupMenu(h2,TPM_RETURNCMD,p.x,p.y,0,hwndDlg,NULL);
+              switch (x)
+              {
+                case IDM_2TO1:
+                  if (localonly)
+                  {
+                    char buf[512];
+                    sprintf(buf,"Setting the action to Remote->Local will result in %d local file(s) being removed.\r\n"
+                                "If this is acceptable, select Yes. Otherwise, select No.",localonly);
+                    if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=1;
+                  }
+                  else do_action_change=1;
+                break;
+                case IDM_1TO2:
+                  if (remoteonly)
+                  {
+                    char buf[512];
+                    sprintf(buf,"Setting the action to Local->Remote will result in %d remote file(s) being removed.\r\n"
+                                "If this is acceptable, select Yes. Otherwise, select No.",remoteonly);
+                    if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=2;
+                  }
+                  else do_action_change=2;
+                break;
+                case IDM_NOACTION:
+                  do_action_change=3;
+                break;
+              }
+              if (do_action_change)
+              {
+                for (y = 0; y < l; y ++)
+                {
+                  if (ListView_GetItemState(m_listview, y, LVIS_SELECTED) & LVIS_SELECTED)
+                  {
+                    char *s=ACTION_NONE;
+                    if (do_action_change == 1) s=ACTION_RECV;
+                    if (do_action_change == 2) s=ACTION_SEND;
+                    ListView_SetItemText(m_listview,y,2,s);
+                  }
+                }
+              }
+            }           
+            DestroyMenu(h);
+          }
+        }
+      }
+    break;
     case WM_TIMER:
       if (wParam == 32)
       {
@@ -264,8 +368,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 lvi.pszText = (*p)->relativeFileName.Get();
                 lvi.lParam = 0;
                 ListView_InsertItem(m_listview,&lvi);
-                ListView_SetItemText(m_listview,x,1,"#2 only");
-                ListView_SetItemText(m_listview,x,2,"?");
+                ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
+                ListView_SetItemText(m_listview,x,2,"Remote->Local");
               }
               else 
               {
@@ -287,11 +391,11 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     ULARGE_INTEGER b=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
                     if (a.QuadPart > b.QuadPart) 
                     {
-                      datedesc="#2 newer";
+                      datedesc="Remote Newer";
                     }
                     else
                     {
-                      datedesc="#1 newer";
+                      datedesc="Local Newer";
                     }
                   }
                   if (!sizeMatch)
@@ -303,11 +407,11 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     b.HighPart = (*res)->fileSizeHigh;
                     if (a.QuadPart > b.QuadPart) 
                     {
-                      sizedesc="#2 larger";
+                      sizedesc="Remote Larger";
                     }
                     else
                     {
-                      sizedesc="#1 larger";
+                      sizedesc="Local Larger";
                     }
                   }
                   char buf[512];
@@ -315,8 +419,11 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     sprintf(buf,"%s, %s",datedesc,sizedesc);
                   else
                     strcpy(buf,datedesc?datedesc:sizedesc);
+
                   ListView_SetItemText(m_listview,x,1,buf);
-                  ListView_SetItemText(m_listview,x,2,"?");
+                  ListView_SetItemText(m_listview,x,2,
+                        dateMatch ? (sizedesc[0]=='R' ? ACTION_RECV:ACTION_SEND) : 
+                                     datedesc[0]=='R' ? ACTION_RECV:ACTION_SEND);
                 }
               }
 
@@ -350,8 +457,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   lvi.pszText = (*p)->relativeFileName.Get();
                   lvi.lParam = 0;
                   ListView_InsertItem(m_listview,&lvi);
-                  ListView_SetItemText(m_listview,x,1,"#1 only");
-                  ListView_SetItemText(m_listview,x,2,"?");
+                  ListView_SetItemText(m_listview,x,1,LOCAL_ONLY_STR);
+                  ListView_SetItemText(m_listview,x,2,"Local->Remote");
               }
 
               m_comparing_pos++;

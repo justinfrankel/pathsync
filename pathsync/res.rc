@@ -31,8 +31,8 @@ STYLE DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PathSync"
 FONT 8, "MS Sans Serif"
 BEGIN
-    LTEXT           "Path #1:",IDC_STATIC,7,9,28,8
-    LTEXT           "Path #2:",IDC_STATIC,206,9,28,8
+    LTEXT           "Local:",IDC_STATIC,7,9,20,8
+    LTEXT           "Remote:",IDC_STATIC,206,9,28,8
     EDITTEXT        IDC_PATH1,37,7,121,12,ES_AUTOHSCROLL
     EDITTEXT        IDC_PATH2,236,7,121,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Analyze",IDC_ANALYZE,408,7,48,12
@@ -87,6 +87,22 @@ BEGIN
 END
 
 #endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU1 MENU DISCARDABLE 
+BEGIN
+    POPUP "ContextMenu"
+    BEGIN
+        MENUITEM "Remote->Local",               IDM_2TO1
+        MENUITEM "Local->Remote",               IDM_1TO2
+        MENUITEM "No Action",                   IDM_NOACTION
+    END
+END
 
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
