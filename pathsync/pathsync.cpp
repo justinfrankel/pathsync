@@ -22,12 +22,14 @@ HINSTANCE g_hInstance;
 class dirItem {
 
 public:
-  dirItem() { }
+  dirItem() { refcnt=0; }
   ~dirItem() { }
 
   GFC_String relativeFileName;
   DWORD fileSizeLow, fileSizeHigh;
   FILETIME lastWriteTime;
+
+  int refcnt;
 
 };
 
@@ -39,7 +41,7 @@ GFC_PtrList<dirItem> m_files[2];
 GFC_PtrList<dirItem> m_listview_recs;
 
 int m_comparing; // second and third bits mean done for each side
-int m_comparing_pos;
+int m_comparing_pos,m_comparing_pos2;
 HWND m_listview;
 char m_inifile[2048];
 
@@ -432,18 +434,19 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           if (m_comparing == 7) // sort 1
           {
             if (m_files[0].GetSize()>1) 
-            {
               qsort(m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
-            }
             m_comparing++;
           }
           else if (m_comparing == 8) // sort 2!
           {
-            if (m_files[1].GetSize()>1) qsort(m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+            if (m_files[1].GetSize()>1) 
+              qsort(m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
             m_comparing++;
             m_comparing_pos=0;
+            m_comparing_pos2=0;
           }
-          else if (m_comparing == 9) // search m_files[0] for every m_files[1], reporting missing and different files
+          
+          if (m_comparing == 9) // search m_files[0] for every m_files[1], reporting missing and different files
           {
             if (!m_files[1].GetSize())
             {
@@ -470,13 +473,15 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               }
               else 
               {
+                (*res)->refcnt++;
                 int dateMatch = !memcmp(&(*p)->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME));
                 int sizeMatch = (*p)->fileSizeHigh == (*res)->fileSizeHigh && 
                     (*p)->fileSizeLow == (*res)->fileSizeLow;
                 if (!sizeMatch || !dateMatch)
                 {
                   int x=ListView_GetItemCount(m_listview);
-                  LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
+                  int insertpos=m_comparing_pos2++;
+                  LVITEM lvi={LVIF_PARAM|LVIF_TEXT,insertpos};
                   lvi.pszText = (*p)->relativeFileName.Get();
                   lvi.lParam = m_listview_recs.GetSize();
                   m_listview_recs.Add(*res);
@@ -519,8 +524,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   else
                     strcpy(buf,datedesc?datedesc:sizedesc);
 
-                  ListView_SetItemText(m_listview,x,1,buf);
-                  ListView_SetItemText(m_listview,x,2,
+                  ListView_SetItemText(m_listview,insertpos,1,buf);
+                  ListView_SetItemText(m_listview,insertpos,2,
                         dateMatch ? (sizedesc[0]=='R' ? ACTION_RECV:ACTION_SEND) : 
                                      datedesc[0]=='R' ? ACTION_RECV:ACTION_SEND);
                 }
@@ -535,7 +540,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               }
             }
           }
-          else if (m_comparing == 10) // search m_files[1] for every m_files[0], only reporting missing files
+          else if (m_comparing == 10) // scan for files in [0] that havent' been referenced
           {
             if (m_files[0].GetSize() < 1)
             {
@@ -546,10 +551,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
               dirItem **p=m_files[0].GetList()+m_comparing_pos;
 
-              dirItem **res=0;
-              if (m_files[1].GetSize()>0) res=(dirItem **)bsearch(p,m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
-
-              if (!res)
+              if (!(*p)->refcnt)
               {
                   int x=ListView_GetItemCount(m_listview);
                   LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
