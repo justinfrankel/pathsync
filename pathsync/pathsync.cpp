@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <commctrl.h>
 #include <search.h>
 #include <stdlib.h>
 
@@ -30,6 +31,7 @@ GFC_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 GFC_PtrList<dirItem> m_files[2];
 int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos;
+HWND m_listview;
 
 #define CLEARPTRLIST(xxx) while (xxx.GetSize()>0) { int n=xxx.GetSize()-1; delete xxx.Get(n); xxx.Delete(n); }
 
@@ -51,7 +53,18 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   switch (uMsg)
   {
     case WM_INITDIALOG:
-    break;
+      m_listview=GetDlgItem(hwndDlg,IDC_LIST1);
+      {
+        LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,300,"Filename"};
+        ListView_InsertColumn(m_listview,0,&lvc);
+        lvc.pszText="Status";
+        lvc.cx=200;
+        ListView_InsertColumn(m_listview,1,&lvc);
+        lvc.pszText="Action";
+        lvc.cx=100;
+        ListView_InsertColumn(m_listview,2,&lvc);
+      }
+    return 0;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
@@ -68,6 +81,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           else
           {
             clearFileLists();
+            ListView_SetItemCount(m_listview,0);
 
             char buf[2048];
             GetDlgItemText(hwndDlg,IDC_PATH1,buf,sizeof(buf));
@@ -143,7 +157,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     str2.Append(di->relativeFileName.Get());
                     str2.Append("\n");
                     SetDlgItemText(hwndDlg,IDC_STATUS,str2.Get());
-                    OutputDebugString(str2.Get());
+//                    OutputDebugString(str2.Get());
                   }
                 }
 
@@ -204,10 +218,17 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
               if (!res)
               {
-                GFC_String str2("File is only in path #2: ");
-                str2.Append((*p)->relativeFileName.Get());
-                str2.Append("\n");
-                OutputDebugString(str2.Get());
+                int x=ListView_GetItemCount(m_listview);
+                LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
+                lvi.pszText = (*p)->relativeFileName.Get();
+                lvi.lParam = 0;
+                ListView_InsertItem(m_listview,&lvi);
+                ListView_SetItemText(m_listview,x,1,"Only in #2");
+                ListView_SetItemText(m_listview,x,2,"?");
+//                GFC_String str2("File is only in path #2: ");
+  //              str2.Append((*p)->relativeFileName.Get());
+    //            str2.Append("\n");
+      //          OutputDebugString(str2.Get());
               }
               else 
               {
@@ -217,10 +238,17 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 }
                 else
                 {
-                  GFC_String str2("Files differ in date or size: ");
-                  str2.Append((*p)->relativeFileName.Get());
-                  str2.Append("\n");
-                  OutputDebugString(str2.Get());
+                  int x=ListView_GetItemCount(m_listview);
+                  LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
+                  lvi.pszText = (*p)->relativeFileName.Get();
+                  lvi.lParam = 0;
+                  ListView_InsertItem(m_listview,&lvi);
+                  ListView_SetItemText(m_listview,x,1,"Different");
+                  ListView_SetItemText(m_listview,x,2,"?");
+      //            GFC_String str2("Files differ in date or size: ");
+    //              str2.Append((*p)->relativeFileName.Get());
+  //                str2.Append("\n");
+//                  OutputDebugString(str2.Get());
                 }
               }
 
@@ -249,10 +277,17 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
               if (!res)
               {
-                GFC_String str2("File is only in path #1: ");
-                str2.Append((*p)->relativeFileName.Get());
-                str2.Append("\n");
-                OutputDebugString(str2.Get());
+                  int x=ListView_GetItemCount(m_listview);
+                  LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
+                  lvi.pszText = (*p)->relativeFileName.Get();
+                  lvi.lParam = 0;
+                  ListView_InsertItem(m_listview,&lvi);
+                  ListView_SetItemText(m_listview,x,1,"Only in #1");
+                  ListView_SetItemText(m_listview,x,2,"?");
+      //          GFC_String str2("File is only in path #1: ");
+    //            str2.Append((*p)->relativeFileName.Get());
+  //              str2.Append("\n");
+//                OutputDebugString(str2.Get());
               }
 
               m_comparing_pos++;
@@ -286,6 +321,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nShowCmd)
 {
   g_hInstance=hInstance;
+  InitCommonControls();
 
   DialogBox(hInstance,MAKEINTRESOURCE(IDD_DIALOG1),NULL,mainDlgProc);
 
