@@ -1,3 +1,23 @@
+/*
+    PathSync - pathsync.cpp
+    Copyright (C) 2004 Cockos Incorporated
+
+    assniffer is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    assniffer is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with assniffer; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+
 #include <windows.h>
 #include <commctrl.h>
 #include <shlobj.h>
@@ -12,6 +32,8 @@
 #include "../WDL/dirscan.h"
 
 #include "../WDL/wingui/wndsize.h"
+
+#define PATHSYNC_VER "v0.1"
 
 HINSTANCE g_hInstance;
 
@@ -154,6 +176,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       resizer.init_item(IDC_LIST1, 0, 0, 1.0, 1.0);
       resizer.init_item(IDC_STATS, 0, 1.0, 1.0, 1.0);
       resizer.init_item(IDC_GO, 1.0, 1.0, 1.0, 1.0);
+
+      SetWindowText(hwndDlg,"PathSync " PATHSYNC_VER " - Analysis");
       
 
       SetClassLong(hwndDlg,GCL_HICON,(long)LoadIcon(g_hInstance,MAKEINTRESOURCE(IDI_ICON1)));

@@ -29,7 +29,6 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 IDD_DIALOG1 DIALOG DISCARDABLE  0, 0, 464, 318
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | 
     WS_THICKFRAME
-CAPTION "PathSync - Analysis"
 FONT 8, "MS Sans Serif"
 BEGIN
     PUSHBUTTON      "Analyze",IDC_ANALYZE,409,7,48,12
@@ -44,7 +43,8 @@ BEGIN
     LTEXT           "Local:",IDC_STATIC,7,9,20,8
     CONTROL         "Status: stopped",IDC_STATUS,"Static",SS_LEFTNOWORDWRAP | 
                     WS_GROUP,7,22,450,8
-    CONTROL         "",IDC_STATS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,298,
+    CONTROL         "Copyright (C) 2004, Cockos Incorporated - www.cockos.com",
+                    IDC_STATS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,298,
                     394,8
 END
 
