@@ -362,228 +362,224 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
           in_timer=1;
           unsigned int start_t=GetTickCount();
-          if (m_comparing < 7) do
+          while (GetTickCount() - start_t < 100)
           {
-            int x;
-            for (x = 0; x < 2; x ++)
+            if (m_comparing < 7)
             {
-              if (!(m_comparing&(2<<x)))
+              int x;
+              for (x = 0; x < 2; x ++)
               {
-                // update item
-                char *ptr=m_curscanner[x].GetCurrentFN();
-                if (strcmp(ptr,".") && strcmp(ptr,".."))
+                if (!(m_comparing&(2<<x)))
                 {
-                  if (m_curscanner[x].GetCurrentIsDirectory())
+                  // update item
+                  char *ptr=m_curscanner[x].GetCurrentFN();
+                  if (strcmp(ptr,".") && strcmp(ptr,".."))
                   {
-                    GFC_String *s=new GFC_String(m_curscanner_relpath[x].Get());
-                    if (m_curscanner_relpath[x].Get()[0]) s->Append("\\");
-                    s->Append(ptr);
-                    m_dirscanlist[x].Add(s);
-                  }
-                  else
-                  {
-                    dirItem *di=new dirItem;
-                    di->relativeFileName.Set(m_curscanner_relpath[x].Get());
-                    if (m_curscanner_relpath[x].Get()[0]) di->relativeFileName.Append("\\");
-                    di->relativeFileName.Append(ptr);
-
-                    di->fileSize.LowPart = m_curscanner[x].GetCurrentFileSize(&di->fileSize.HighPart);
-                    m_curscanner[x].GetCurrentLastWriteTime(&di->lastWriteTime);
-
-                    m_files[x].Add(di);
-
-                    GFC_String str2("Scanning file: ");
-                    str2.Append(di->relativeFileName.Get());
-                    str2.Append("\n");
-                    SetDlgItemText(hwndDlg,IDC_STATUS,str2.Get());
-//                    OutputDebugString(str2.Get());
-                  }
-                }
-
-                if (m_curscanner[x].Next())
-                {
-                  int success=0;
-                  m_curscanner[x].Close();
-                  // done with this dir!
-                  while (m_dirscanlist[x].GetSize()>0)
-                  {
-                    int i=m_dirscanlist[x].GetSize()-1;
-                    GFC_String *str=m_dirscanlist[x].Get(i);
-                    m_curscanner_relpath[x].Set(str->Get());
-                    m_dirscanlist[x].Delete(i);
-                    delete str;
-
-                    GFC_String s(m_curscanner_basepath[x].Get());
-                    s.Append("\\");
-                    s.Append(m_curscanner_relpath[x].Get());
-                    if (!m_curscanner[x].First(s.Get()))
+                    if (m_curscanner[x].GetCurrentIsDirectory())
                     {
-                      success=1;
-                      break;
+                      GFC_String *s=new GFC_String(m_curscanner_relpath[x].Get());
+                      if (m_curscanner_relpath[x].Get()[0]) s->Append("\\");
+                      s->Append(ptr);
+                      m_dirscanlist[x].Add(s);
+                    }
+                    else
+                    {
+                      dirItem *di=new dirItem;
+                      di->relativeFileName.Set(m_curscanner_relpath[x].Get());
+                      if (m_curscanner_relpath[x].Get()[0]) di->relativeFileName.Append("\\");
+                      di->relativeFileName.Append(ptr);
+
+                      di->fileSize.LowPart = m_curscanner[x].GetCurrentFileSize(&di->fileSize.HighPart);
+                      m_curscanner[x].GetCurrentLastWriteTime(&di->lastWriteTime);
+
+                      m_files[x].Add(di);
+
+                      GFC_String str2("Scanning file: ");
+                      str2.Append(di->relativeFileName.Get());
+                      str2.Append("\n");
+                      SetDlgItemText(hwndDlg,IDC_STATUS,str2.Get());
+  //                    OutputDebugString(str2.Get());
                     }
                   }
-                  if (!success) m_comparing |= 2<<x;                  
-                }
-              }
-            } // each dir
-          } while (m_comparing < 7 && GetTickCount() - start_t < 100);
 
-          if (m_comparing == 7) // sort 1
-          {
-            if (m_files[0].GetSize()>1) 
-              qsort(m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
-            m_comparing++;
-          }
-          else if (m_comparing == 8) // sort 2!
-          {
-            // this isn't really necessary, but it's fast and then provides consistent output for the ordering
-            if (m_files[1].GetSize()>1) 
-              qsort(m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
-            m_comparing++;
-            m_comparing_pos=0;
-            m_comparing_pos2=0;
-          }
-          
-          if (m_comparing == 9) // search m_files[0] for every m_files[1], reporting missing and different files
-          {
-            if (!m_files[1].GetSize())
+                  if (m_curscanner[x].Next())
+                  {
+                    int success=0;
+                    m_curscanner[x].Close();
+                    // done with this dir!
+                    while (m_dirscanlist[x].GetSize()>0 && !success)
+                    {
+                      int i=m_dirscanlist[x].GetSize()-1;
+                      GFC_String *str=m_dirscanlist[x].Get(i);
+                      m_curscanner_relpath[x].Set(str->Get());
+                      m_dirscanlist[x].Delete(i);
+                      delete str;
+
+                      GFC_String s(m_curscanner_basepath[x].Get());
+                      s.Append("\\");
+                      s.Append(m_curscanner_relpath[x].Get());
+                      if (!m_curscanner[x].First(s.Get())) success++;
+                    }
+                    if (!success) m_comparing |= 2<<x;                  
+                  }
+                }
+              } // each dir
+            } // < 7
+            else if (m_comparing == 7) // sort 1
             {
+              if (m_files[0].GetSize()>1) 
+                qsort(m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
               m_comparing++;
             }
-            else while (GetTickCount() - start_t < 100)
+            else if (m_comparing == 8) // sort 2!
             {
-              dirItem **p=m_files[1].GetList()+m_comparing_pos;
-
-              dirItem **res=0;
-              if (m_files[0].GetSize()>0) res=(dirItem **)bsearch(p,m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
-
-              if (!res)
-              {
-                int x=ListView_GetItemCount(m_listview);
-                LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
-                lvi.pszText = (*p)->relativeFileName.Get();
-                lvi.lParam = m_listview_recs.GetSize();
-                m_listview_recs.Add(NULL);
-                m_listview_recs.Add(*p);
-                ListView_InsertItem(m_listview,&lvi);
-                ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
-                ListView_SetItemText(m_listview,x,2,"Remote->Local");
-              }
-              else 
-              {
-                (*res)->refcnt++;
-                ULARGE_INTEGER fta=*(ULARGE_INTEGER *)&(*p)->lastWriteTime;
-                ULARGE_INTEGER ftb=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
-                __int64 datediff = fta.QuadPart - ftb.QuadPart;
-                if (datediff < 0) datediff=-datediff;
-                int dateMatch = datediff < 10000000; // if difference is less than 1s, than they are equal
-                int sizeMatch = (*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart;
-                if (!sizeMatch || !dateMatch)
-                {
-                  int x=ListView_GetItemCount(m_listview);
-                  int insertpos=m_comparing_pos2++;
-                  LVITEM lvi={LVIF_PARAM|LVIF_TEXT,insertpos};
-                  lvi.pszText = (*p)->relativeFileName.Get();
-                  lvi.lParam = m_listview_recs.GetSize();
-                  m_listview_recs.Add(*res);
-                  m_listview_recs.Add(*p);
-                  ListView_InsertItem(m_listview,&lvi);
-                  char *datedesc=0,*sizedesc=0;
-
-                  if (!dateMatch)
-                  {
-                    if (fta.QuadPart > ftb.QuadPart) 
-                    {
-                      datedesc="Remote Newer";
-                    }
-                    else
-                    {
-                      datedesc="Local Newer";
-                    }
-                  }
-                  if (!sizeMatch)
-                  {
-                    if ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart) 
-                    {
-                      sizedesc="Remote Larger";
-                    }
-                    else
-                    {
-                      sizedesc="Local Larger";
-                    }
-                  }
-                  char buf[512];
-                  if (sizedesc && datedesc) 
-                    wsprintf(buf,"%s, %s",datedesc,sizedesc);
-                  else
-                    strcpy(buf,datedesc?datedesc:sizedesc);
-
-                  ListView_SetItemText(m_listview,insertpos,1,buf);
-                  ListView_SetItemText(m_listview,insertpos,2,
-                        dateMatch ? (sizedesc[0]=='R' ? ACTION_RECV:ACTION_SEND) : 
-                                     datedesc[0]=='R' ? ACTION_RECV:ACTION_SEND);
-                }
-              }
-
-              m_comparing_pos++;
-              if (m_comparing_pos >= m_files[1].GetSize())
+              // this isn't really necessary, but it's fast and then provides consistent output for the ordering
+              if (m_files[1].GetSize()>1) 
+                qsort(m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+              m_comparing++;
+              m_comparing_pos=0;
+              m_comparing_pos2=0;
+            }         
+            else if (m_comparing == 9) // search m_files[0] for every m_files[1], reporting missing and different files
+            {
+              if (!m_files[1].GetSize())
               {
                 m_comparing++;
-                m_comparing_pos=0;
-                break;
               }
-            }
-          }
-          else if (m_comparing == 10) // scan for files in [0] that havent' been referenced
-          {
-            if (m_files[0].GetSize() < 1)
-            {
-              m_comparing++;
-            }
-            // at this point, we go through m_files[0] and search m_files[1] for files not 
-            else while (GetTickCount() - start_t < 100)
-            {
-              dirItem **p=m_files[0].GetList()+m_comparing_pos;
-
-              if (!(*p)->refcnt)
+              else
               {
+                dirItem **p=m_files[1].GetList()+m_comparing_pos;
+
+                dirItem **res=0;
+                if (m_files[0].GetSize()>0) res=(dirItem **)bsearch(p,m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+
+                if (!res)
+                {
                   int x=ListView_GetItemCount(m_listview);
                   LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
                   lvi.pszText = (*p)->relativeFileName.Get();
                   lvi.lParam = m_listview_recs.GetSize();
-                  m_listview_recs.Add(*p);
                   m_listview_recs.Add(NULL);
+                  m_listview_recs.Add(*p);
                   ListView_InsertItem(m_listview,&lvi);
-                  ListView_SetItemText(m_listview,x,1,LOCAL_ONLY_STR);
-                  ListView_SetItemText(m_listview,x,2,"Local->Remote");
-              }
+                  ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
+                  ListView_SetItemText(m_listview,x,2,"Remote->Local");
+                }
+                else 
+                {
+                  (*res)->refcnt++;
+                  ULARGE_INTEGER fta=*(ULARGE_INTEGER *)&(*p)->lastWriteTime;
+                  ULARGE_INTEGER ftb=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
+                  __int64 datediff = fta.QuadPart - ftb.QuadPart;
+                  if (datediff < 0) datediff=-datediff;
+                  int dateMatch = datediff < 10000000; // if difference is less than 1s, than they are equal
+                  int sizeMatch = (*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart;
+                  if (!sizeMatch || !dateMatch)
+                  {
+                    int x=ListView_GetItemCount(m_listview);
+                    int insertpos=m_comparing_pos2++;
+                    LVITEM lvi={LVIF_PARAM|LVIF_TEXT,insertpos};
+                    lvi.pszText = (*p)->relativeFileName.Get();
+                    lvi.lParam = m_listview_recs.GetSize();
+                    m_listview_recs.Add(*res);
+                    m_listview_recs.Add(*p);
+                    ListView_InsertItem(m_listview,&lvi);
+                    char *datedesc=0,*sizedesc=0;
 
-              m_comparing_pos++;
-              if (m_comparing_pos >= m_files[0].GetSize())
-              {
-                m_comparing++;
-                m_comparing_pos=0;
-                break;
+                    if (!dateMatch)
+                    {
+                      if (fta.QuadPart > ftb.QuadPart) 
+                      {
+                        datedesc="Remote Newer";
+                      }
+                      else
+                      {
+                        datedesc="Local Newer";
+                      }
+                    }
+                    if (!sizeMatch)
+                    {
+                      if ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart) 
+                      {
+                        sizedesc="Remote Larger";
+                      }
+                      else
+                      {
+                        sizedesc="Local Larger";
+                      }
+                    }
+                    char buf[512];
+                    if (sizedesc && datedesc) 
+                      wsprintf(buf,"%s, %s",datedesc,sizedesc);
+                    else
+                      strcpy(buf,datedesc?datedesc:sizedesc);
+
+                    ListView_SetItemText(m_listview,insertpos,1,buf);
+                    ListView_SetItemText(m_listview,insertpos,2,
+                          dateMatch ? (sizedesc[0]=='R' ? ACTION_RECV:ACTION_SEND) : 
+                                       datedesc[0]=='R' ? ACTION_RECV:ACTION_SEND);
+                  }
+                }
+
+                m_comparing_pos++;
+                if (m_comparing_pos >= m_files[1].GetSize())
+                {
+                  m_comparing++;
+                  m_comparing_pos=0;
+                }
               }
             }
-          }
-          else if (m_comparing == 11)
-          {
-            KillTimer(hwndDlg,32);
-            SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
-            SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Done");
-            m_comparing=0;
-            EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);     
-            calcStats(hwndDlg);
-          }
+            else if (m_comparing == 10) // scan for files in [0] that havent' been referenced
+            {
+              if (m_files[0].GetSize() < 1)
+              {
+                m_comparing++;
+              }
+              // at this point, we go through m_files[0] and search m_files[1] for files not 
+              else 
+              {
+                dirItem **p=m_files[0].GetList()+m_comparing_pos;
+
+                if (!(*p)->refcnt)
+                {
+                    int x=ListView_GetItemCount(m_listview);
+                    LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
+                    lvi.pszText = (*p)->relativeFileName.Get();
+                    lvi.lParam = m_listview_recs.GetSize();
+                    m_listview_recs.Add(*p);
+                    m_listview_recs.Add(NULL);
+                    ListView_InsertItem(m_listview,&lvi);
+                    ListView_SetItemText(m_listview,x,1,LOCAL_ONLY_STR);
+                    ListView_SetItemText(m_listview,x,2,"Local->Remote");
+                }
+
+                m_comparing_pos++;
+                if (m_comparing_pos >= m_files[0].GetSize())
+                {
+                  m_comparing++;
+                  m_comparing_pos=0;
+                }
+              }
+            }
+            else if (m_comparing == 11)
+            {
+              KillTimer(hwndDlg,32);
+              SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
+              SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Done");
+              m_comparing=0;
+              EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);     
+              calcStats(hwndDlg);
+              break; // exit loop
+            }
+          } // while
           in_timer=0;
-        }
-      }
+        } // if (!in_timer)
+      } // (wParam == 32)
     break;
   }
 

@@ -41,32 +41,37 @@ BEGIN
                     LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,34,449,258
     PUSHBUTTON      "Go!",IDC_GO,406,298,50,14,WS_DISABLED
     LTEXT           "Local:",IDC_STATIC,7,9,20,8
-    LTEXT           "Status: stopped",IDC_STATUS,7,22,449,8
-    LTEXT           "",IDC_STATS,7,298,358,8
+    CONTROL         "Status: stopped",IDC_STATUS,"Static",SS_LEFTNOWORDWRAP | 
+                    WS_GROUP,7,22,449,8
+    CONTROL         "",IDC_STATS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,298,
+                    358,8
 END
 
-IDD_DIALOG2 DIALOG DISCARDABLE  0, 0, 364, 213
+IDD_DIALOG2 DIALOG DISCARDABLE  0, 0, 364, 188
 STYLE DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PathSync - Synchronization"
 FONT 8, "MS Sans Serif"
 BEGIN
-    PUSHBUTTON      "Cancel",IDCANCEL,159,192,50,14
-    LTEXT           "",IDC_SRC,39,6,318,8
-    LISTBOX         IDC_LIST1,7,123,350,63,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
+    PUSHBUTTON      "Cancel",IDCANCEL,159,167,50,14
+    CONTROL         "",IDC_SRC,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,39,6,
+                    318,8
+    LISTBOX         IDC_LIST1,7,98,350,63,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
                     WS_HSCROLL | WS_TABSTOP
-    LTEXT           "Error log:",IDC_STATIC,7,112,29,8
-    LTEXT           "",IDC_DEST,39,16,318,8
+    LTEXT           "Error log:",IDC_STATIC,7,87,29,8
+    CONTROL         "",IDC_DEST,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,39,16,
+                    318,8
     LTEXT           "Source:",IDC_STATIC,7,6,26,8
     LTEXT           "Dest:",IDC_STATIC,7,16,18,8
     CONTROL         "",IDC_TOTALPOS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,
-                    74,350,20
+                    52,350,20
     CONTROL         "Progress1",IDC_TOTALPROGRESS,"msctls_progress32",
-                    WS_BORDER,7,96,350,10
+                    WS_BORDER,7,74,350,10
     CONTROL         "Progress1",IDC_FILEPROGRESS,"msctls_progress32",
                     WS_BORDER,7,39,350,10
-    LTEXT           "",IDC_FILEPOS,7,28,350,8
+    CONTROL         "",IDC_FILEPOS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,
+                    28,350,8
     CONTROL         "Close window when finished",IDC_CHECK1,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,223,193,105,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,223,168,105,10
 END
 
 
@@ -91,7 +96,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 357
         TOPMARGIN, 6
-        BOTTOMMARGIN, 206
+        BOTTOMMARGIN, 181
     END
 END
 #endif    // APSTUDIO_INVOKED
