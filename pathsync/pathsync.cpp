@@ -1,13 +1,13 @@
 /*
     PathSync - pathsync.cpp
-    Copyright (C) 2004 Cockos Incorporated
+    Copyright (C) 2004-2005 Cockos Incorporated
 
-    assniffer is free software; you can redistribute it and/or modify
+    PathSync is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
     (at your option) any later version.
 
-    assniffer is distributed in the hope that it will be useful,
+    PathSync is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -33,7 +33,7 @@
 
 #include "../WDL/wingui/wndsize.h"
 
-#define PATHSYNC_VER "v0.1"
+#define PATHSYNC_VER "v0.2"
 
 HINSTANCE g_hInstance;
 
@@ -279,6 +279,27 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDM_LOAD_SYNC_SETTINGS:
         break;
         case IDM_SAVE_SYNC_SETTINGS:
+        break;
+        case IDM_ABOUT:
+          MessageBox(hwndDlg,"PathSync " PATHSYNC_VER "\r\nCopyright (C) 2004-2005, Cockos Inc.\r\n"
+            "For updates visit http://www.cockos.com/pathsync/\r\n"
+            "\r\n"
+                    "PathSync is free software; you can redistribute it and/or modify\r\n"
+                        "it under the terms of the GNU General Public License as published by\r\n"
+                        "the Free Software Foundation; either version 2 of the License, or\r\n"
+                        "(at your option) any later version.\r\n"
+                     "\r\n"
+                        "PathSync is distributed in the hope that it will be useful,\r\n"
+                        "but WITHOUT ANY WARRANTY; without even the implied warranty of\r\n"
+                        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\r\n"
+                        "GNU General Public License for more details.\r\n"
+                    "\r\n"
+                        "You should have received a copy of the GNU General Public License\r\n"
+                        "along with assniffer; if not, write to the Free Software\r\n"
+                        "Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\r\n"                        
+            ,
+                                  
+            "About PathSync",MB_OK);
         break;
         case IDM_EXIT:
           PostMessage(hwndDlg,WM_CLOSE,0,0);

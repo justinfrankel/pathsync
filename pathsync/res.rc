@@ -167,6 +167,10 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "&Quit",                       IDM_EXIT
     END
+    POPUP "&Help", HELP
+    BEGIN
+        MENUITEM "&About...",                   IDM_ABOUT
+    END
 END
 
 
