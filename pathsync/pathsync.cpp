@@ -500,6 +500,35 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   return 0;
 }
 
+char * skip_root(char *path)
+{
+  char *p = CharNext(path);
+  char *p2 = CharNext(p);
+
+  if (*path && *p == ':' && *p2=='\\')
+  {
+    return CharNext(p2);
+  }
+  else if (*path == '\\' && *p == '\\')
+  {
+    // skip host and share name
+    int x = 2;
+    while (x--)
+    {
+      while (*p2 != '\\')
+      {
+        if (!*p2)
+          return NULL;
+        p2 = CharNext(p2);
+      }
+      p2 = CharNext(p2);
+    }
+
+    return p2;
+  }
+  else
+    return NULL;
+}
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nShowCmd)
 {
@@ -549,6 +578,26 @@ class fileCopier
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
         return -1;
       }
+
+      {
+        GFC_String tmp(dest);
+        char *p=tmp.Get();
+        char c='c';
+        if (*p) 
+        {
+          p = skip_root(tmp.Get());
+          if (p) while (c)
+          {
+            while (*p != '\\' && *p) p=CharNext(p);
+            c=*p;
+            *p=0;
+            CreateDirectory(tmp.Get(),NULL);
+            *p++ = c;
+          }
+        }
+      }
+      
+
       m_tmpdestfn.Set(dest);
       m_tmpdestfn.Append(".PSYN_TMP");
       m_dstFile = CreateFile(m_tmpdestfn.Get(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,0,NULL);
