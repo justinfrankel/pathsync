@@ -342,7 +342,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             OPENFILENAME l={sizeof(l),};
             strcpy(temp,m_lastsettingsfile);
             l.hwndOwner = hwndDlg;
-            l.lpstrFilter = "PathSync SyncSettings (*.PSS)\0*.PSS\0All Files\0*.*\0\0";
+            l.lpstrFilter = "PathSync Settings (*.PSS)\0*.PSS\0All Files\0*.*\0\0";
             l.lpstrFile = temp;
             l.nMaxFile = sizeof(temp)-1;
             l.lpstrTitle = "Load SyncSettings from file:";
@@ -365,7 +365,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             strcpy(temp,m_lastsettingsfile);
             OPENFILENAME l={sizeof(l),};
             l.hwndOwner = hwndDlg;
-            l.lpstrFilter = "PathSync SyncSettings (*.PSS)\0*.PSS\0All Files\0*.*\0\0";
+            l.lpstrFilter = "PathSync Settings (*.PSS)\0*.PSS\0All Files\0*.*\0\0";
             l.lpstrFile = temp;
             l.nMaxFile = sizeof(temp)-1;
             l.lpstrTitle = "Save SyncSettings to file:";

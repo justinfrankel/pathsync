@@ -16,7 +16,7 @@ SetCompressor lzma
 
 
   ;Name and file
-  Name "PathSync ${VER_MAJOR}.${VER_MINOR}"
+  Name "PathSync v${VER_MAJOR}.${VER_MINOR}"
   OutFile "pathsync${VER_MAJOR}${VER_MINOR}-install.exe"
 
   ;Default installation folder
@@ -95,6 +95,25 @@ Section "Start Menu Shortcuts"
 
 SectionEnd
 
+Section "PathSync Source Code"
+  SetOutPath $INSTDIR\Source\PathSync
+  File pathsync.dsw
+  File pathsync.dsp
+  File pathsync.cpp
+  File resource.h
+  File res.rc
+  File ps.nsi
+  File icon1.ico
+  SetOutPath $INSTDIR\Source\WDL
+  File ..\WDL\dirscan.h
+  File ..\WDL\ptrlist.h
+  File ..\WDL\heapbuf.h
+  File ..\WDL\string.h
+  SetOutPath $INSTDIR\Source\WDL\WinGUI
+  File ..\WDL\wingui\wndsize.h
+  File ..\WDL\wingui\wndsize.cpp 
+SectionEnd
+
 
 
 ;--------------------------------
@@ -116,6 +135,21 @@ Section "Uninstall"
   RMDir $SMPROGRAMS\PathSync
   Delete "$DESKTOP\PathSync.lnk"
 
+  Delete $INSTDIR\Source\PathSync\pathsync.dsw
+  Delete $INSTDIR\Source\PathSync\pathsync.dsp
+  Delete $INSTDIR\Source\PathSync\pathsync.cpp
+  Delete $INSTDIR\Source\PathSync\ps.nsi
+  Delete $INSTDIR\Source\PathSync\resource.h
+  Delete $INSTDIR\Source\PathSync\res.rc
+  Delete $INSTDIR\Source\PathSync\icon1.ico
+
+  Delete $INSTDIR\Source\WDL\*
+  Delete $INSTDIR\Source\WDL\WinGUI\*
+  RMDir $INSTDIR\Source\WDL\WinGUI
+  RMDir $INSTDIR\Source\WDL
+  RMDir $INSTDIR\Source\PathSync
+  RMDir $INSTDIR\Source
+  
   RMDir "$INSTDIR"
 
 SectionEnd
