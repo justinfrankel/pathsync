@@ -164,6 +164,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         WritePrivateProfileString("config","path2",path,m_inifile);
       }
     return 0;
+    case WM_CLOSE:
+      EndDialog(hwndDlg,1);
+    break;
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
@@ -178,6 +181,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
+            EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
           }
           else
           {
@@ -202,7 +206,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               // start new scan
               SetDlgItemText(hwndDlg,IDC_ANALYZE,"Stop...");
               m_comparing=1;
-              SetTimer(hwndDlg,32,20,NULL);
+              SetTimer(hwndDlg,32,50,NULL);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),0);
@@ -213,9 +218,6 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           }
         break;
         case IDOK:
-        break;
-        case IDCANCEL:
-          EndDialog(hwndDlg,1);
         break;
         case IDC_BROWSE1:
         case IDC_BROWSE2:
@@ -564,6 +566,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
             SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Done");
             m_comparing=0;
+            EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
@@ -703,7 +706,7 @@ class fileCopier
 
     int run(HWND hwndParent) // return 1 when done
     {
-      char buf[65536];
+      char buf[256*1024];
       DWORD r;
       if (!ReadFile(m_srcFile,buf,sizeof(buf),&r,NULL))
       {
@@ -853,6 +856,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   switch (uMsg)
   {
     case WM_INITDIALOG:
+      if (GetPrivateProfileInt("config","accopy",0,m_inifile)) CheckDlgButton(hwndDlg,IDC_CHECK1,BST_CHECKED);
       m_copy_starttime=GetTickCount();
       m_next_statusupdate=0;
       m_copy_deletes=m_copy_files=0;
@@ -862,7 +866,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       m_copy_bytestotalsofar=0;
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,0,0);
-      SetTimer(hwndDlg,60,20,NULL);
+      SetTimer(hwndDlg,60,50,NULL);
     return 0;
     case WM_DESTROY:
       if (m_copy_curcopy)
@@ -877,7 +881,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       {       
         unsigned int start_t=GetTickCount();
         unsigned int now;
-        while ((now=GetTickCount()) - start_t < 400)
+        while ((now=GetTickCount()) - start_t < 200)
         {
           if (m_copy_curcopy && m_copy_curcopy->run(hwndDlg))
           {
@@ -907,6 +911,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               m_copy_done=1;
               SetDlgItemText(hwndDlg,IDC_FILEPOS,"");
               SetDlgItemText(hwndDlg,IDCANCEL,"Close");
+              if (IsDlgButtonChecked(hwndDlg,IDC_CHECK1)) EndDialog(hwndDlg,1);
               return 0;
             }
             else
@@ -973,6 +978,9 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
+        case IDC_CHECK1:
+          WritePrivateProfileString("config","accopy", IsDlgButtonChecked(hwndDlg,IDC_CHECK1)?"1":"0",m_inifile);
+        break;
         case IDCANCEL:
           if (m_copy_done || MessageBox(hwndDlg,"Cancel copy?","Question",MB_YESNO)==IDYES)
             EndDialog(hwndDlg,1);

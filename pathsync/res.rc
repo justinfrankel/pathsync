@@ -65,6 +65,8 @@ BEGIN
     CONTROL         "Progress1",IDC_FILEPROGRESS,"msctls_progress32",
                     WS_BORDER,7,39,350,10
     LTEXT           "",IDC_FILEPOS,7,28,350,8
+    CONTROL         "Close window when finished",IDC_CHECK1,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,223,193,105,10
 END
 
 
