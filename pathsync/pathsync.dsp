@@ -95,6 +95,14 @@ LINK32=link.exe
 
 SOURCE=.\pathsync.cpp
 # End Source File
+# Begin Source File
+
+SOURCE=..\WDL\wingui\wndsize.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\WDL\wingui\wndsize.h
+# End Source File
 # End Group
 # Begin Group "Header Files"
 

@@ -11,6 +11,8 @@
 #include "../WDL/string.h"
 #include "../WDL/dirscan.h"
 
+#include "../WDL/wingui/wndsize.h"
+
 HINSTANCE g_hInstance;
 
 #define ACTION_RECV "Remote->Local"
@@ -137,9 +139,23 @@ void calcStats(HWND hwndDlg)
 
 BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+  static WDL_WndSizer resizer;
   switch (uMsg)
   {
     case WM_INITDIALOG:
+      resizer.init(hwndDlg);
+      resizer.init_item(IDC_PATH1, 0, 0, 0.5, 0);
+      resizer.init_item(IDC_BROWSE1, 0.5, 0, 0.5, 0);
+      resizer.init_item(IDC_REMOTE_LABEL, 0.5, 0, 0.5, 0);
+      resizer.init_item(IDC_PATH2, 0.5, 0, 1.0, 0);
+      resizer.init_item(IDC_BROWSE2, 1.0, 0, 1.0, 0);
+      resizer.init_item(IDC_ANALYZE, 1.0, 0, 1.0, 0);
+      resizer.init_item(IDC_STATUS, 0, 0, 1.0, 0);
+      resizer.init_item(IDC_LIST1, 0, 0, 1.0, 1.0);
+      resizer.init_item(IDC_STATS, 0, 1.0, 1.0, 1.0);
+      resizer.init_item(IDC_GO, 1.0, 1.0, 1.0, 1.0);
+      
+
       SetClassLong(hwndDlg,GCL_HICON,(long)LoadIcon(g_hInstance,MAKEINTRESOURCE(IDI_ICON1)));
       m_listview=GetDlgItem(hwndDlg,IDC_LIST1);
       {
@@ -160,6 +176,19 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
       }
     return 0;
+    case WM_GETMINMAXINFO:
+      {
+        LPMINMAXINFO p=(LPMINMAXINFO)lParam;
+        p->ptMinTrackSize.x = 444;
+        p->ptMinTrackSize.y = 238;
+      }
+    return 0;
+    case WM_SIZE:
+      if (wParam != SIZE_MINIMIZED) {
+        resizer.onResize();
+      }
+    return 0;
+
     case WM_DESTROY:
       {
         char path[2048];
