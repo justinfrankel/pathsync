@@ -64,6 +64,7 @@ WDL_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 WDL_PtrList<dirItem> m_files[2];
 WDL_PtrList<dirItem> m_listview_recs;
 
+int g_ignflags; // used only temporarily
 int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos,m_comparing_pos2;
 HWND m_listview;
@@ -197,6 +198,11 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           SetDlgItemText(hwndDlg,IDC_PATH1,path);
           GetPrivateProfileString("config","path2","",path,sizeof(path),m_inifile);
           SetDlgItemText(hwndDlg,IDC_PATH2,path);
+          int ignflags=GetPrivateProfileInt("config","ignflags",0,m_inifile);
+          CheckDlgButton(hwndDlg,IDC_IGNORE_SIZE,(ignflags&1)?BST_CHECKED:BST_UNCHECKED);
+          CheckDlgButton(hwndDlg,IDC_IGNORE_DATE,(ignflags&2)?BST_CHECKED:BST_UNCHECKED);
+          CheckDlgButton(hwndDlg,IDC_IGNORE_MISSLOCAL,(ignflags&4)?BST_CHECKED:BST_UNCHECKED);
+          CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
         }
       }
     return 0;
@@ -220,6 +226,13 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         WritePrivateProfileString("config","path1",path,m_inifile);
         GetDlgItemText(hwndDlg,IDC_PATH2,path,sizeof(path));
         WritePrivateProfileString("config","path2",path,m_inifile);
+        int ignflags=0;
+        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) ignflags |= 1;
+        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) ignflags |= 2;
+        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) ignflags |= 4;
+        if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) ignflags |= 8;
+        wsprintf(path,"%d",ignflags);
+        WritePrivateProfileString("config","ignflags",path,m_inifile);
       }
     return 0;
     case WM_CLOSE:
@@ -243,6 +256,12 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           }
           else
           {
+            g_ignflags=0;
+            if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) g_ignflags |= 1;
+            if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) g_ignflags |= 2;
+            if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) g_ignflags |= 4;
+            if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) g_ignflags |= 8;
+
             clearFileLists(hwndDlg);
             SetDlgItemText(hwndDlg,IDC_STATS,"");
 
@@ -508,15 +527,18 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (!res)
                 {
-                  int x=ListView_GetItemCount(m_listview);
-                  LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
-                  lvi.pszText = (*p)->relativeFileName.Get();
-                  lvi.lParam = m_listview_recs.GetSize();
-                  m_listview_recs.Add(NULL);
-                  m_listview_recs.Add(*p);
-                  ListView_InsertItem(m_listview,&lvi);
-                  ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
-                  ListView_SetItemText(m_listview,x,2,"Remote->Local");
+                  if (!(g_ignflags&4))
+                  {
+                    int x=ListView_GetItemCount(m_listview);
+                    LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
+                    lvi.pszText = (*p)->relativeFileName.Get();
+                    lvi.lParam = m_listview_recs.GetSize();
+                    m_listview_recs.Add(NULL);
+                    m_listview_recs.Add(*p);
+                    ListView_InsertItem(m_listview,&lvi);
+                    ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
+                    ListView_SetItemText(m_listview,x,2,"Remote->Local");
+                  }
                 }
                 else 
                 {
@@ -525,8 +547,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   ULARGE_INTEGER ftb=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
                   __int64 datediff = fta.QuadPart - ftb.QuadPart;
                   if (datediff < 0) datediff=-datediff;
-                  int dateMatch = datediff < 10000000; // if difference is less than 1s, than they are equal
-                  int sizeMatch = (*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart;
+                  int dateMatch = datediff < 10000000 || (g_ignflags & 2); // if difference is less than 1s, than they are equal
+                  int sizeMatch = ((*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart) || (g_ignflags & 1);
                   if (!sizeMatch || !dateMatch)
                   {
                     int x=ListView_GetItemCount(m_listview);
@@ -595,6 +617,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (!(*p)->refcnt)
                 {
+                  if (!(g_ignflags & 8))
+                  {
                     int x=ListView_GetItemCount(m_listview);
                     LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
                     lvi.pszText = (*p)->relativeFileName.Get();
@@ -604,6 +628,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     ListView_InsertItem(m_listview,&lvi);
                     ListView_SetItemText(m_listview,x,1,LOCAL_ONLY_STR);
                     ListView_SetItemText(m_listview,x,2,"Local->Remote");
+                  }
                 }
 
                 m_comparing_pos++;

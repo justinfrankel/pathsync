@@ -37,12 +37,21 @@ BEGIN
     LTEXT           "Remote:",IDC_REMOTE_LABEL,206,9,28,8
     EDITTEXT        IDC_PATH2,236,7,121,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Browse",IDC_BROWSE2,359,7,33,12
+    LTEXT           "Ignore:",IDC_STATIC,8,26,23,8
+    CONTROL         "File sizes",IDC_IGNORE_SIZE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,37,26,41,10
+    CONTROL         "File dates",IDC_IGNORE_DATE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,84,26,44,10
+    CONTROL         "Missing local files",IDC_IGNORE_MISSLOCAL,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,132,26,70,10
+    CONTROL         "Missing remote files",IDC_IGNORE_MISSREMOTE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,204,26,77,10
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
-                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,34,450,258
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,52,450,240
     PUSHBUTTON      "Go!",IDC_GO,407,297,50,14,WS_DISABLED
     LTEXT           "Local:",IDC_STATIC,7,9,20,8
     CONTROL         "Status: stopped",IDC_STATUS,"Static",SS_LEFTNOWORDWRAP | 
-                    WS_GROUP,7,22,450,8
+                    WS_GROUP,7,41,450,8
     CONTROL         "Copyright (C) 2004, Cockos Incorporated - www.cockos.com",
                     IDC_STATS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,298,
                     394,8
