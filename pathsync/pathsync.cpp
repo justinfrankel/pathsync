@@ -471,7 +471,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               }
 
               m_comparing_pos++;
-              if (m_comparing_pos >= m_files[1].GetSize())
+              if (m_comparing_pos >= m_files[0].GetSize())
               {
                 m_comparing++;
                 m_comparing_pos=0;
@@ -518,17 +518,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 //////////// file copying code, eh
 
 int m_copy_entrypos;
-int m_copy_done;
+int m_copy_done,m_copy_deletes;
 int m_copy_copyactive;
+__int64 m_copy_bytestotal;
 
 BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
   switch (uMsg)
   {
     case WM_INITDIALOG:
+      m_copy_deletes=0;
       m_copy_copyactive=0;
       m_copy_entrypos=-1;
       m_copy_done=0;
+      m_copy_bytestotal=0;
+      SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,ListView_GetItemCount(m_listview)));
+      SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,0,0);
       SetTimer(hwndDlg,60,50,NULL);
     return 0;
     case WM_DESTROY:
@@ -548,7 +553,22 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         if (!m_copy_copyactive)
         {
-          if (++m_copy_entrypos >= ListView_GetItemCount(m_listview))
+          int cnt=ListView_GetItemCount(m_listview);
+          m_copy_entrypos++;
+          SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,m_copy_entrypos,0);
+          {
+            char buf[512];
+            char *p=buf;
+            wsprintf(buf,"File %d/%d; %uMB copied, %d file(s) deleted",m_copy_entrypos,cnt,(unsigned int) (m_copy_bytestotal>>10),m_copy_deletes);
+            if (m_copy_entrypos >= cnt)
+            {
+              while (*p && *p != ';') p ++;
+              p+=2; // skip over File etc
+            }
+            SetDlgItemText(hwndDlg,IDC_TOTALPOS,p);
+          }
+
+          if (m_copy_entrypos >= cnt)
           {
             SetDlgItemText(hwndDlg,IDC_SRC,"");
             SetDlgItemText(hwndDlg,IDC_DEST,"");
@@ -577,6 +597,16 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               gs.Append("\\");
               gs.Append(filename);
               SetDlgItemText(hwndDlg,IDC_DEST,gs.Get());
+
+              if (!DeleteFile(gs.Get()))
+              {
+                GFC_String news("Error removing");
+                news.Append(isRecv ? " local file: " : " remote file: ");
+                news.Append(filename);
+                SendDlgItemMessage(hwndDlg,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)news.Get());
+              }
+              else
+                m_copy_deletes++;
             }
             else if (isRecv || isSend)
             {
