@@ -80,6 +80,7 @@ int m_comparing_pos,m_comparing_pos2;
 HWND m_listview;
 char m_inifile[2048];
 char m_lastsettingsfile[2048];
+char g_loadsettingsfile[2048];
 
 #define CLEARPTRLIST(xxx) { int x; for (x = 0; x < xxx.GetSize(); x ++) { delete xxx.Get(x); } xxx.Empty(); }
 
@@ -205,7 +206,7 @@ void stopAnalyzeAndClearList(HWND hwndDlg)
 }
 
 
-void load_settings(HWND hwndDlg, char *sec, char *fn)
+int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
 {
   char path[2048];
   GetPrivateProfileString(sec,"path1","",path,sizeof(path),fn);
@@ -218,12 +219,16 @@ void load_settings(HWND hwndDlg, char *sec, char *fn)
   CheckDlgButton(hwndDlg,IDC_IGNORE_MISSLOCAL,(ignflags&4)?BST_CHECKED:BST_UNCHECKED);
   CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
   SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_SETCURSEL,(WPARAM)GetPrivateProfileInt(sec,"defbeh",0,fn),0);
+
+  return GetPrivateProfileInt(sec,"pssversion",0,fn);
 }
 
 
 void save_settings(HWND hwndDlg, char *sec, char *fn)
 {
   char path[2048];
+  if (strcmp(sec,"config")) WritePrivateProfileString(sec,"pssversion","1",fn);
+
   GetDlgItemText(hwndDlg,IDC_PATH1,path,sizeof(path));
   WritePrivateProfileString(sec,"path1",path,fn);
   GetDlgItemText(hwndDlg,IDC_PATH2,path,sizeof(path));
@@ -281,10 +286,13 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
       }
 
-
-
-      load_settings(hwndDlg,"config",m_inifile);
-
+      if (g_loadsettingsfile[0] && load_settings(hwndDlg,"pathsync settings",g_loadsettingsfile)>0)
+      {
+        set_current_settings_file(hwndDlg,g_loadsettingsfile);
+      }
+      else load_settings(hwndDlg,"config",m_inifile);
+      g_loadsettingsfile[0]=0;
+ 
     return 0;
     case WM_GETMINMAXINFO:
       {
@@ -308,14 +316,16 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_DROPFILES:
       {
         HDROP hDrop=(HDROP)wParam;
-        char buf[4096];
+        char buf[2048];
         if (DragQueryFile(hDrop,0,buf,sizeof(buf))>4)
         {
           if (!stricmp(buf+strlen(buf)-4,".pss"))
           {
               stopAnalyzeAndClearList(hwndDlg);
-              load_settings(hwndDlg,"pathsync settings",buf);
-              set_current_settings_file(hwndDlg,buf);
+              if (load_settings(hwndDlg,"pathsync settings",buf) > 0)
+              {
+                set_current_settings_file(hwndDlg,buf);
+              }
           }
         }
         DragFinish(hDrop);
@@ -324,7 +334,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
       switch (LOWORD(wParam))
       {
-        // todo: drag&drop, shell integration
+        // todo: shell integration
         case IDM_LOAD_SYNC_SETTINGS:
           {
             char cpath[MAX_PATH*2];
@@ -332,10 +342,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             OPENFILENAME l={sizeof(l),};
             strcpy(temp,m_lastsettingsfile);
             l.hwndOwner = hwndDlg;
-            l.lpstrFilter = "PathSync Sync Setting files (*.PSS)\0*.PSS\0\0";
+            l.lpstrFilter = "PathSync SyncSettings (*.PSS)\0*.PSS\0All Files\0*.*\0\0";
             l.lpstrFile = temp;
             l.nMaxFile = sizeof(temp)-1;
-            l.lpstrTitle = "Choose Synchronization Settings File";
+            l.lpstrTitle = "Load SyncSettings from file:";
             l.lpstrDefExt = "PSS";
             GetCurrentDirectory(MAX_PATH*2,cpath);
             l.lpstrInitialDir=cpath;
@@ -343,8 +353,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (GetOpenFileName(&l)) 
             {
               stopAnalyzeAndClearList(hwndDlg);
-              load_settings(hwndDlg,"pathsync settings",temp);
-              set_current_settings_file(hwndDlg,temp);
+              if (load_settings(hwndDlg,"pathsync settings",temp) > 0)
+                set_current_settings_file(hwndDlg,temp);
             }
           }
         break;
@@ -355,10 +365,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             strcpy(temp,m_lastsettingsfile);
             OPENFILENAME l={sizeof(l),};
             l.hwndOwner = hwndDlg;
-            l.lpstrFilter = "PathSync Sync Setting files (*.PSS)\0*.PSS\0\0";
+            l.lpstrFilter = "PathSync SyncSettings (*.PSS)\0*.PSS\0All Files\0*.*\0\0";
             l.lpstrFile = temp;
             l.nMaxFile = sizeof(temp)-1;
-            l.lpstrTitle = "Save Synchronization Settings to:";
+            l.lpstrTitle = "Save SyncSettings to file:";
             l.lpstrDefExt = "PSS";
             GetCurrentDirectory(MAX_PATH*2,cpath);
             l.lpstrInitialDir=cpath;
@@ -876,6 +886,55 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
   GetModuleFileName(hInstance,m_inifile,sizeof(m_inifile)-32);
   strcat(m_inifile,".ini");
+
+
+
+
+  {
+    int state=0;
+    char *p=lpszCmdParam;
+    while (*p)
+    {
+      char parm[2048];
+      int parm_pos=0,qs=0;
+
+      while (isspace(*p)) p++;
+      if (!*p) break;
+
+      while (*p && (!isspace(*p) || qs))
+      {
+        if (*p == '\"') qs=!qs;
+        else if (parm_pos < (int)sizeof(parm)-1) parm[parm_pos++]=*p;       
+        p++;
+      }
+      parm[parm_pos]=0;
+
+      if (parm[0] == '/') parm[0]='-';
+      switch (state)
+      {
+        case 0:
+          if (!stricmp(parm,"-loadpss")) state=1;
+          else state=-1;
+        break;
+        case 1:
+          if (parm[0]=='-') state=-1;
+          else
+          {
+            lstrcpyn(g_loadsettingsfile,parm,sizeof(g_loadsettingsfile));
+            state=0;
+          }
+        break;
+      }
+      if (state < 0) break;
+    }
+    if (state)
+    {
+      MessageBox(NULL,"Usage:\r\npathsync [-loadpss <filename>]","PathSync Usage",MB_OK);
+      return 0;
+    }
+  }
+
+
 
   DialogBox(hInstance,MAKEINTRESOURCE(IDD_DIALOG1),NULL,mainDlgProc);
 
