@@ -1,0 +1,24 @@
+PathSync version history:
+
+v0.2 (3/08/04):
++ support for PSS (pathsync settings) files 
+  + menu items to load/save
+  + drag&drop PSS files
+  + shell integration (open your PSS in explorer, or run pathsync -loadpss <file>)
++ option for ignoring dates/sizes/missing files
++ option for default sync actions
++ installer
+
+v0.1 (8/20/04):
++ first release
+
+
+
+
+TODO (feel free to send in patches to enable some of these, otherwise they
+will eventually get done anyway, maybe):
+  + directory date support, remove directories that do not exist, etc
+  + bandwidth throttling
+  + support for auto analyze,sync,close for launching PSS files, for automating
+    the tasks
+  + network support (have it run as client/server, using TCP or something)
