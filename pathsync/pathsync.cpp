@@ -50,7 +50,7 @@ int filenameCompareFunction(dirItem **a, dirItem **b)
   return stricmp((*a)->relativeFileName.Get(),(*b)->relativeFileName.Get());
 }
 
-void clearFileLists()
+void clearFileLists(HWND hwndDlg)
 {
   CLEARPTRLIST(m_dirscanlist[0])
   CLEARPTRLIST(m_dirscanlist[1])
@@ -185,7 +185,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           }
           else
           {
-            clearFileLists();
+            clearFileLists(hwndDlg);
+            SetDlgItemText(hwndDlg,IDC_STATS,"");
 
             char buf[2048];
             GetDlgItemText(hwndDlg,IDC_PATH1,buf,sizeof(buf));
@@ -239,7 +240,13 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDC_GO:
           if (ListView_GetItemCount(m_listview))
           {
-            DialogBox(g_hInstance,MAKEINTRESOURCE(IDD_DIALOG2),hwndDlg,copyFilesProc);
+            ShowWindow(hwndDlg,SW_HIDE);
+            DialogBox(g_hInstance,MAKEINTRESOURCE(IDD_DIALOG2),NULL,copyFilesProc);
+            clearFileLists(hwndDlg);
+            SetDlgItemText(hwndDlg,IDC_STATS,"");
+            SetDlgItemText(hwndDlg,IDC_STATUS,"");
+            EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
+            ShowWindow(hwndDlg,SW_SHOW);
           }
         break;
       }
@@ -982,7 +989,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           WritePrivateProfileString("config","accopy", IsDlgButtonChecked(hwndDlg,IDC_CHECK1)?"1":"0",m_inifile);
         break;
         case IDCANCEL:
-          if (m_copy_done || MessageBox(hwndDlg,"Cancel copy?","Question",MB_YESNO)==IDYES)
+          if (m_copy_done || MessageBox(hwndDlg,"Cancel synchronization?","Question",MB_YESNO)==IDYES)
             EndDialog(hwndDlg,1);
         break;
       }
