@@ -1,6 +1,6 @@
 PathSync version history:
 
-v0.2 (3/08/04):
+v0.2 (3/08/05):
 + support for PSS (pathsync settings) files 
   + menu items to load/save
   + drag&drop PSS files
