@@ -13,7 +13,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with assniffer; if not, write to the Free Software
+    along with PathSync; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -396,7 +396,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                         "GNU General Public License for more details.\r\n"
                     "\r\n"
                         "You should have received a copy of the GNU General Public License\r\n"
-                        "along with assniffer; if not, write to the Free Software\r\n"
+                        "along with PathSync; if not, write to the Free Software\r\n"
                         "Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\r\n"                        
             ,
                                   
