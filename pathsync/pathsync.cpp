@@ -197,7 +197,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             else while (GetTickCount() - start_t < 100)
             {
-              dirItem *p=m_files[1].Get(m_comparing_pos);
+              dirItem **p=m_files[1].GetList()+m_comparing_pos;
 
               dirItem **res=0;
               if (m_files[0].GetSize()>0) res=(dirItem **)bsearch(p,m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
@@ -205,20 +205,20 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               if (!res)
               {
                 GFC_String str2("File is only in path #2: ");
-                str2.Append(p->relativeFileName.Get());
+                str2.Append((*p)->relativeFileName.Get());
                 str2.Append("\n");
                 OutputDebugString(str2.Get());
               }
               else 
               {
-                if (p->fileSizeHigh == (*res)->fileSizeHigh && p->fileSizeLow == (*res)->fileSizeLow && !memcmp(&p->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME)))
+                if ((*p)->fileSizeHigh == (*res)->fileSizeHigh && (*p)->fileSizeLow == (*res)->fileSizeLow && !memcmp(&(*p)->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME)))
                 {
                   // match, woo! do nothing
                 }
                 else
                 {
                   GFC_String str2("Files differ in date or size: ");
-                  str2.Append(p->relativeFileName.Get());
+                  str2.Append((*p)->relativeFileName.Get());
                   str2.Append("\n");
                   OutputDebugString(str2.Get());
                 }
@@ -242,7 +242,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             // at this point, we go through m_files[0] and search m_files[1] for files not 
             else while (GetTickCount() - start_t < 100)
             {
-              dirItem *p=m_files[0].Get(m_comparing_pos);
+              dirItem **p=m_files[0].GetList()+m_comparing_pos;
 
               dirItem **res=0;
               if (m_files[1].GetSize()>0) res=(dirItem **)bsearch(p,m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
@@ -250,7 +250,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               if (!res)
               {
                 GFC_String str2("File is only in path #1: ");
-                str2.Append(p->relativeFileName.Get());
+                str2.Append((*p)->relativeFileName.Get());
                 str2.Append("\n");
                 OutputDebugString(str2.Get());
               }
