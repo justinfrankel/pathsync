@@ -57,6 +57,16 @@ public:
 
 };
 
+
+char *g_syncactions[]=
+{
+  "Bidirectional (default)",
+  ACTION_SEND " (do not delete missing files)",
+  ACTION_RECV " (do not delete missing files)",
+  ACTION_SEND,
+  ACTION_RECV,
+};
+
 WDL_PtrList<WDL_String> m_dirscanlist[2];
 WDL_DirScan m_curscanner[2];
 WDL_String m_curscanner_relpath[2],m_curscanner_basepath[2];
@@ -64,7 +74,7 @@ WDL_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 WDL_PtrList<dirItem> m_files[2];
 WDL_PtrList<dirItem> m_listview_recs;
 
-int g_ignflags; // used only temporarily
+int g_ignflags,g_defbeh; // used only temporarily
 int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos,m_comparing_pos2;
 HWND m_listview;
@@ -135,7 +145,7 @@ void calcStats(HWND hwndDlg)
       // calculate loc/rem here
     }
   }
-  char buf[512];
+  char buf[1024];
   strcpy(buf,"Synchronizing will ");
   if (totalfilescopy)
   {
@@ -156,6 +166,7 @@ void calcStats(HWND hwndDlg)
   }
   else EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);
 
+  strcat(buf," (select and right click items to change their actions)");
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
   m_total_copy_size=totalbytescopy.QuadPart;
 }
@@ -177,6 +188,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       resizer.init_item(IDC_LIST1, 0, 0, 1.0, 1.0);
       resizer.init_item(IDC_STATS, 0, 1.0, 1.0, 1.0);
       resizer.init_item(IDC_GO, 1.0, 1.0, 1.0, 1.0);
+      resizer.init_item(IDC_DEFBEHAVIOR,0.0,0.0,1.0,0.0);
 
       SetWindowText(hwndDlg,"PathSync " PATHSYNC_VER " - Analysis");
       
@@ -205,6 +217,15 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
         }
       }
+      {
+        int x;
+        for (x = 0; x < sizeof(g_syncactions) / sizeof(g_syncactions[0]); x ++)
+        {
+          SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_ADDSTRING,0,(LPARAM)g_syncactions[x]);
+        }
+        SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_SETCURSEL,(WPARAM)GetPrivateProfileInt("config","defbeh",0,m_inifile),0);
+      }
+
     return 0;
     case WM_GETMINMAXINFO:
       {
@@ -232,7 +253,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) ignflags |= 4;
         if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) ignflags |= 8;
         wsprintf(path,"%d",ignflags);
-        WritePrivateProfileString("config","ignflags",path,m_inifile);
+        WritePrivateProfileString("config","ignflags",path,m_inifile);       
+        wsprintf(path,"%d",SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_GETCURSEL,0,0));
+        WritePrivateProfileString("config","defbeh",path,m_inifile);
       }
     return 0;
     case WM_CLOSE:
@@ -261,6 +284,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) g_ignflags |= 2;
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) g_ignflags |= 4;
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) g_ignflags |= 8;
+            g_defbeh=SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_GETCURSEL,0,0);
 
             clearFileLists(hwndDlg);
             SetDlgItemText(hwndDlg,IDC_STATS,"");
@@ -386,7 +410,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (localonly)
                   {
                     char buf[512];
-                    sprintf(buf,"Setting the action to Remote->Local will result in %d local file%s being removed.\r\n"
+                    sprintf(buf,"Setting the action to " ACTION_RECV " will result in %d local file%s being removed.\r\n"
                         "If this is acceptable, select Yes. Otherwise, select No.",localonly,localonly==1?"":"s");
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=1;
                   }
@@ -396,7 +420,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (remoteonly)
                   { 
                     char buf[512];
-                    sprintf(buf,"Setting the action to Local->Remote will result in %d remote file%s being removed.\r\n"
+                    sprintf(buf,"Setting the action to " ACTION_SEND " will result in %d remote file%s being removed.\r\n"
                       "If this is acceptable, select Yes. Otherwise, select No.",remoteonly,remoteonly==1?"":"s");
                     if (MessageBox(hwndDlg,buf,"PathSync Warning",MB_YESNO|MB_ICONQUESTION) == IDYES) do_action_change=2;
                   }
@@ -537,7 +561,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     m_listview_recs.Add(*p);
                     ListView_InsertItem(m_listview,&lvi);
                     ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
-                    ListView_SetItemText(m_listview,x,2,"Remote->Local");
+                    ListView_SetItemText(m_listview,x,2,
+                      g_defbeh == 3 ? ACTION_SEND : g_defbeh == 1 ? ACTION_NONE : ACTION_RECV                                    
+                    );
                   }
                 }
                 else 
@@ -590,9 +616,19 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                       strcpy(buf,datedesc?datedesc:sizedesc);
 
                     ListView_SetItemText(m_listview,insertpos,1,buf);
-                    ListView_SetItemText(m_listview,insertpos,2,
-                          dateMatch ? ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart ? ACTION_RECV:ACTION_SEND) : 
-                                       fta.QuadPart > ftb.QuadPart ? ACTION_RECV:ACTION_SEND);
+
+                    if (g_defbeh == 1 || g_defbeh == 3)
+                    {
+                      ListView_SetItemText(m_listview,insertpos,2,ACTION_SEND);
+                    }
+                    else if (g_defbeh == 2 || g_defbeh == 4)
+                    {
+                      ListView_SetItemText(m_listview,insertpos,2,ACTION_RECV);
+                    }
+                    else
+                      ListView_SetItemText(m_listview,insertpos,2,
+                            dateMatch ? ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart ? ACTION_RECV:ACTION_SEND) : 
+                                         fta.QuadPart > ftb.QuadPart ? ACTION_RECV:ACTION_SEND);
                   }
                 }
 
@@ -627,7 +663,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     m_listview_recs.Add(NULL);
                     ListView_InsertItem(m_listview,&lvi);
                     ListView_SetItemText(m_listview,x,1,LOCAL_ONLY_STR);
-                    ListView_SetItemText(m_listview,x,2,"Local->Remote");
+
+                    ListView_SetItemText(m_listview,x,2,
+                      g_defbeh == 4 ? ACTION_RECV : g_defbeh == 2 ? ACTION_NONE : ACTION_SEND
+                    );
                   }
                 }
 
