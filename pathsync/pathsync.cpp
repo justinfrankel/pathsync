@@ -1,4 +1,6 @@
 #include <windows.h>
+#include <search.h>
+#include <stdlib.h>
 
 #include "resource.h"
 
@@ -27,8 +29,14 @@ GFC_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 
 GFC_PtrList<dirItem> m_files[2];
 int m_comparing; // second and third bits mean done for each side
+int m_comparing_pos;
 
 #define CLEARPTRLIST(xxx) while (xxx.GetSize()>0) { int n=xxx.GetSize()-1; delete xxx.Get(n); xxx.Delete(n); }
+
+int filenameCompareFunction(dirItem **a, dirItem **b)
+{
+  return stricmp((*a)->relativeFileName.Get(),(*b)->relativeFileName.Get());
+}
 
 void clearFileLists()
 {
@@ -101,7 +109,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
           in_timer=1;
           unsigned int start_t=GetTickCount();
-          do
+          if (m_comparing < 7) do
           {
             int x;
             for (x = 0; x < 2; x ++)
@@ -135,6 +143,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     str2.Append(di->relativeFileName.Get());
                     str2.Append("\n");
                     SetDlgItemText(hwndDlg,IDC_STATUS,str2.Get());
+                    OutputDebugString(str2.Get());
                   }
                 }
 
@@ -165,9 +174,97 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               }
             } // each dir
           } while (m_comparing < 7 && GetTickCount() - start_t < 100);
-          in_timer=0;
 
-          if (m_comparing >= 7) // done!
+          if (m_comparing == 7) // sort 1
+          {
+            if (m_files[0].GetSize()>1) 
+            {
+              qsort(m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+            }
+            m_comparing++;
+          }
+          else if (m_comparing == 8) // sort 2!
+          {
+            if (m_files[1].GetSize()>1) qsort(m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+            m_comparing++;
+            m_comparing_pos=0;
+          }
+          else if (m_comparing == 9) // search m_files[0] for every m_files[1], reporting missing and different files
+          {
+            if (!m_files[1].GetSize())
+            {
+              m_comparing++;
+            }
+            else while (GetTickCount() - start_t < 100)
+            {
+              dirItem *p=m_files[1].Get(m_comparing_pos);
+
+              dirItem **res=0;
+              if (m_files[0].GetSize()>0) res=(dirItem **)bsearch(p,m_files[0].GetList(),m_files[0].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+
+              if (!res)
+              {
+                GFC_String str2("File is only in path #2: ");
+                str2.Append(p->relativeFileName.Get());
+                str2.Append("\n");
+                OutputDebugString(str2.Get());
+              }
+              else 
+              {
+                if (p->fileSizeHigh == (*res)->fileSizeHigh && p->fileSizeLow == (*res)->fileSizeLow && !memcmp(&p->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME)))
+                {
+                  // match, woo! do nothing
+                }
+                else
+                {
+                  GFC_String str2("Files differ in date or size: ");
+                  str2.Append(p->relativeFileName.Get());
+                  str2.Append("\n");
+                  OutputDebugString(str2.Get());
+                }
+              }
+
+              m_comparing_pos++;
+              if (m_comparing_pos >= m_files[1].GetSize())
+              {
+                m_comparing++;
+                m_comparing_pos=0;
+                break;
+              }
+            }
+          }
+          else if (m_comparing == 10) // search m_files[1] for every m_files[0], only reporting missing files
+          {
+            if (m_files[0].GetSize() < 1)
+            {
+              m_comparing++;
+            }
+            // at this point, we go through m_files[0] and search m_files[1] for files not 
+            else while (GetTickCount() - start_t < 100)
+            {
+              dirItem *p=m_files[0].Get(m_comparing_pos);
+
+              dirItem **res=0;
+              if (m_files[1].GetSize()>0) res=(dirItem **)bsearch(p,m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
+
+              if (!res)
+              {
+                GFC_String str2("File is only in path #1: ");
+                str2.Append(p->relativeFileName.Get());
+                str2.Append("\n");
+                OutputDebugString(str2.Get());
+              }
+
+              m_comparing_pos++;
+              if (m_comparing_pos >= m_files[1].GetSize())
+              {
+                m_comparing++;
+                m_comparing_pos=0;
+                break;
+              }
+            }
+          }
+          else if (m_comparing == 11)
           {
             KillTimer(hwndDlg,32);
             SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
@@ -176,6 +273,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
           }
+          in_timer=0;
         }
       }
     break;
