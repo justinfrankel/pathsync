@@ -82,6 +82,9 @@ char m_inifile[2048];
 char m_lastsettingsfile[2048];
 char g_loadsettingsfile[2048];
 
+const int endislist[]={IDC_STATS,IDC_PATH1,IDC_PATH2,IDC_BROWSE1,IDC_BROWSE2,IDC_IGNORE_SIZE,IDC_IGNORE_DATE,IDC_IGNORE_MISSLOCAL,IDC_IGNORE_MISSREMOTE,IDC_DEFBEHAVIOR};
+
+
 #define CLEARPTRLIST(xxx) { int x; for (x = 0; x < xxx.GetSize(); x ++) { delete xxx.Get(x); } xxx.Empty(); }
 
 int filenameCompareFunction(dirItem **a, dirItem **b)
@@ -193,11 +196,9 @@ void stopAnalyzeAndClearList(HWND hwndDlg)
     SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
     SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Stopped");
     m_comparing=0;
-    EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
-    EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
-    EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
-    EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
-    EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
+    int x;
+    for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
+      EnableWindow(GetDlgItem(hwndDlg,endislist[x]),1);
   }
   clearFileLists(hwndDlg);
   SetDlgItemText(hwndDlg,IDC_STATS,"");
@@ -417,11 +418,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
             SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Stopped");
             m_comparing=0;
-            EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
+            int x;
+            for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
+              EnableWindow(GetDlgItem(hwndDlg,endislist[x]),1);
           }
           else
           {
@@ -455,11 +454,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               SetDlgItemText(hwndDlg,IDC_ANALYZE,"Stop...");
               m_comparing=1;
               SetTimer(hwndDlg,32,50,NULL);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),0);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),0);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),0);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),0);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),0);
+              int x;
+              for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
+                EnableWindow(GetDlgItem(hwndDlg,endislist[x]),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);              
             }
 
@@ -830,11 +827,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
               SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Done");
               m_comparing=0;
-              EnableWindow(GetDlgItem(hwndDlg,IDC_STATS),1);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
-              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
+
+              int x;
+              for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
+                EnableWindow(GetDlgItem(hwndDlg,endislist[x]),1);
               EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);     
               calcStats(hwndDlg);
               break; // exit loop
