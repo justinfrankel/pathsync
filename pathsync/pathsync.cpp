@@ -55,6 +55,8 @@ void clearFileLists()
   CLEARPTRLIST(m_files[0])
   CLEARPTRLIST(m_files[1])
 }
+BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
 
 BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -133,6 +135,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),0);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);              
             }
 
           }
@@ -157,6 +160,12 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	            m->Free(id);
               SetDlgItemText(hwndDlg,LOWORD(wParam) == IDC_BROWSE1 ? IDC_PATH1 : IDC_PATH2, name);
             }
+          }
+        break;
+        case IDC_GO:
+          if (ListView_GetItemCount(m_listview))
+          {
+            DialogBox(g_hInstance,MAKEINTRESOURCE(IDD_DIALOG2),hwndDlg,copyFilesProc);
           }
         break;
       }
@@ -229,7 +238,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 break;
                 case IDM_1TO2:
                   if (remoteonly)
-                  {
+                  { 
                     char buf[512];
                     sprintf(buf,"Setting the action to Local->Remote will result in %d remote file(s) being removed.\r\n"
                                 "If this is acceptable, select Yes. Otherwise, select No.",remoteonly);
@@ -480,6 +489,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
+            EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);              
           }
           in_timer=0;
         }
@@ -501,5 +511,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
 
   DialogBox(hInstance,MAKEINTRESOURCE(IDD_DIALOG1),NULL,mainDlgProc);
 
+  return 0;
+}
+
+
+//////////// file copying code, eh
+
+
+BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_INITDIALOG:
+    return 0;
+    case WM_COMMAND:
+      switch (LOWORD(wParam))
+      {
+        case IDCANCEL:
+          if (MessageBox(hwndDlg,"Cancel copy?","Question",MB_YESNO)==IDYES)
+            EndDialog(hwndDlg,1);
+        break;
+      }
+    break;
+  }
   return 0;
 }
