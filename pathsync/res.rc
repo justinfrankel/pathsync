@@ -31,17 +31,18 @@ STYLE DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PathSync"
 FONT 8, "MS Sans Serif"
 BEGIN
-    LTEXT           "Local:",IDC_STATIC,7,9,20,8
-    LTEXT           "Remote:",IDC_STATIC,206,9,28,8
-    EDITTEXT        IDC_PATH1,37,7,121,12,ES_AUTOHSCROLL
-    EDITTEXT        IDC_PATH2,236,7,121,12,ES_AUTOHSCROLL
     PUSHBUTTON      "Analyze",IDC_ANALYZE,408,7,48,12
+    EDITTEXT        IDC_PATH1,37,7,121,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_BROWSE1,161,7,33,12
+    LTEXT           "Remote:",IDC_STATIC,206,9,28,8
+    EDITTEXT        IDC_PATH2,236,7,121,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse",IDC_BROWSE2,359,7,33,12
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
                     LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,34,449,258
-    LTEXT           "Status: stopped",IDC_STATUS,7,22,449,8
-    PUSHBUTTON      "Browse",IDC_BROWSE1,161,7,33,12
-    PUSHBUTTON      "Browse",IDC_BROWSE2,359,7,33,12
     PUSHBUTTON      "Go!",IDC_GO,406,298,50,14,WS_DISABLED
+    LTEXT           "Local:",IDC_STATIC,7,9,20,8
+    LTEXT           "Status: stopped",IDC_STATUS,7,22,449,8
+    LTEXT           "",IDC_STATS,7,298,358,8
 END
 
 IDD_DIALOG2 DIALOG DISCARDABLE  0, 0, 364, 213
@@ -57,7 +58,8 @@ BEGIN
     LTEXT           "",IDC_DEST,39,16,318,8
     LTEXT           "Source:",IDC_STATIC,7,6,26,8
     LTEXT           "Dest:",IDC_STATIC,7,16,18,8
-    CTEXT           "0/0",IDC_TOTALPOS,7,86,350,8
+    CONTROL         "",IDC_TOTALPOS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,
+                    74,350,20
     CONTROL         "Progress1",IDC_TOTALPROGRESS,"msctls_progress32",
                     WS_BORDER,7,96,350,10
     CONTROL         "Progress1",IDC_FILEPROGRESS,"msctls_progress32",

@@ -36,12 +36,14 @@ GFC_DirScan m_curscanner[2];
 GFC_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 
 GFC_PtrList<dirItem> m_files[2];
+GFC_PtrList<dirItem> m_listview_recs;
+
 int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos;
 HWND m_listview;
 char m_inifile[2048];
 
-#define CLEARPTRLIST(xxx) while (xxx.GetSize()>0) { int n=xxx.GetSize()-1; delete xxx.Get(n); xxx.Delete(n); }
+#define CLEARPTRLIST(xxx) { int x; for (x = 0; x < xxx.GetSize(); x ++) { delete xxx.Get(x); } xxx.Empty(); }
 
 int filenameCompareFunction(dirItem **a, dirItem **b)
 {
@@ -54,9 +56,80 @@ void clearFileLists()
   CLEARPTRLIST(m_dirscanlist[1])
   CLEARPTRLIST(m_files[0])
   CLEARPTRLIST(m_files[1])
+
+  // dont clear m_listview_recs[], cause they are just references
+  ListView_DeleteAllItems(m_listview);
+  m_listview_recs.Empty();
 }
 BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
+
+void format_size_string(__int64 size, char *str)
+{
+  if (size < 1024) sprintf(str,"%uB",(int)size);
+  else if (size < 1048576) sprintf(str,"%.2lfKB",(double) size / 1024.0);
+  else if (size < 1073741824) sprintf(str,"%.2lfMB",(double) size / 1048576.0);
+  else if (size < 1099511627776i64) sprintf(str,"%.2lfGB",(double) size / 1073741824.0);
+  else sprintf(str,"%.2lfTB",(double) size / 1099511627776.0);
+}
+
+
+__int64 m_total_copy_size;
+
+void calcStats(HWND hwndDlg)
+{
+  ULARGE_INTEGER totalbytescopy;
+  int totalfilesdelete=0,totalfilescopy=0;
+  totalbytescopy.QuadPart=0;
+  int x,l=ListView_GetItemCount(m_listview);
+  for (x = 0; x < l; x ++)
+  {
+    char action[128];
+    LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x,2};
+    lvi.pszText=action;
+    lvi.cchTextMax=sizeof(action);
+    ListView_GetItem(m_listview,&lvi);
+
+    int x=lvi.lParam;
+    dirItem **its=m_listview_recs.GetList()+x;
+    if (strcmp(action,ACTION_NONE))
+    {
+      int isSend=!strcmp(action,ACTION_SEND);
+
+      if (its[!isSend])
+      {
+        totalfilescopy++;
+        totalbytescopy.QuadPart += its[!isSend]->fileSizeLow;
+        totalbytescopy.HighPart += its[!isSend]->fileSizeHigh;
+      }
+      else // delete
+      {
+        totalfilesdelete++;
+      }     
+      // calculate loc/rem here
+    }
+  }
+  char buf[512];
+  sprintf(buf,"Synchronizing will ");
+  if (totalfilescopy)
+  {
+    char tmp[128];
+    format_size_string(totalbytescopy.QuadPart,tmp);
+    sprintf(buf+strlen(buf),"copy %s in %d file(s)",tmp,totalfilescopy);
+  }
+  if (totalfilesdelete)
+  {
+    if (totalfilescopy) strcat(buf,", and ");
+    sprintf(buf+strlen(buf),"delete %d file(s)",totalfilesdelete);
+  }
+  m_total_copy_size=totalbytescopy.QuadPart;
+
+  if (!totalfilesdelete && !totalfilescopy)
+  {
+    strcat(buf,"not perform any actions");
+  }
+  SetDlgItemText(hwndDlg,IDC_STATS,buf);
+}
 
 BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -109,7 +182,6 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           else
           {
             clearFileLists();
-            ListView_DeleteAllItems(m_listview);
 
             char buf[2048];
             GetDlgItemText(hwndDlg,IDC_PATH1,buf,sizeof(buf));
@@ -262,6 +334,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     ListView_SetItemText(m_listview,y,2,s);
                   }
                 }
+                calcStats(hwndDlg);
               }
             }           
             DestroyMenu(h);
@@ -375,7 +448,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 int x=ListView_GetItemCount(m_listview);
                 LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
                 lvi.pszText = (*p)->relativeFileName.Get();
-                lvi.lParam = 0;
+                lvi.lParam = m_listview_recs.GetSize();
+                m_listview_recs.Add(NULL);
+                m_listview_recs.Add(*p);
                 ListView_InsertItem(m_listview,&lvi);
                 ListView_SetItemText(m_listview,x,1,REMOTE_ONLY_STR);
                 ListView_SetItemText(m_listview,x,2,"Remote->Local");
@@ -390,7 +465,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   int x=ListView_GetItemCount(m_listview);
                   LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
                   lvi.pszText = (*p)->relativeFileName.Get();
-                  lvi.lParam = 0;
+                  lvi.lParam = m_listview_recs.GetSize();
+                  m_listview_recs.Add(*res);
+                  m_listview_recs.Add(*p);
                   ListView_InsertItem(m_listview,&lvi);
                   char *datedesc=0,*sizedesc=0;
 
@@ -464,7 +541,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   int x=ListView_GetItemCount(m_listview);
                   LVITEM lvi={LVIF_PARAM|LVIF_TEXT,x};
                   lvi.pszText = (*p)->relativeFileName.Get();
-                  lvi.lParam = 0;
+                  lvi.lParam = m_listview_recs.GetSize();
+                  m_listview_recs.Add(*p);
+                  m_listview_recs.Add(NULL);
                   ListView_InsertItem(m_listview,&lvi);
                   ListView_SetItemText(m_listview,x,1,LOCAL_ONLY_STR);
                   ListView_SetItemText(m_listview,x,2,"Local->Remote");
@@ -489,7 +568,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
-            EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);              
+            EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);     
+            calcStats(hwndDlg);
           }
           in_timer=0;
         }
@@ -550,7 +630,7 @@ int m_copy_entrypos;
 int m_copy_done;
 int m_copy_deletes,m_copy_files;
 unsigned int m_copy_starttime;
-__int64 m_copy_bytestotal;
+__int64 m_copy_bytestotalsofar;
 
 class fileCopier
 {
@@ -635,7 +715,7 @@ class fileCopier
 
       if (r)
       {
-        m_copy_bytestotal+=r;
+        m_copy_bytestotalsofar+=r;
         m_filepos += r;
 
         DWORD or;
@@ -659,10 +739,12 @@ class fileCopier
         SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETPOS,(WPARAM)v,0);
         {
           char text[512];
-          sprintf(text,"%d%% - %.2lfMB/%.2lfMB @ %dKB/s",v/100,(double) m_filepos / (1024.0 * 1024.0),
-                        (double) m_filesize.QuadPart / (1024.0 * 1024.0),                          
-                        (int) (((m_filepos * 1000)/1024)/tm)
-                        );
+          char tmp1[128],tmp2[128],tmp3[128];
+          format_size_string(m_filepos,tmp1);
+          format_size_string(m_filesize.QuadPart,tmp2);
+          format_size_string((m_filepos * 1000)/tm,tmp3);
+
+          sprintf(text,"%d%% - %s/%s @ %s/s",v/100,tmp1,tmp2,tmp3);
           SetDlgItemText(hwndParent,IDC_FILEPOS,text);
         }
       }
@@ -741,16 +823,28 @@ void updateXferStatus(HWND hwndDlg)
   char *p=buf;
   unsigned int t = GetTickCount() - m_copy_starttime;
   if (!t) t=1;
-  sprintf(buf,"File %d/%d; %d file(s) (%.2lfMB) copied at %dKB/s, %d file(s) deleted",m_copy_entrypos+1,ListView_GetItemCount(m_listview),
-    m_copy_files,(double) m_copy_bytestotal / (1024.0*1024.0),
-  
-    (int) (((m_copy_bytestotal * 1000) / 1024) / t),
-    m_copy_deletes);
-  if (m_copy_entrypos >= ListView_GetItemCount(m_listview))
-  {
-    while (*p && *p != ';') p ++;
-    p+=2; // skip over File etc
-  }
+  if (!m_total_copy_size) m_total_copy_size=1;
+  int v= (int) ((m_copy_bytestotalsofar * 10000) / m_total_copy_size);
+
+
+  __int64 bytesleft = m_total_copy_size - m_copy_bytestotalsofar;
+  int pred_t = 0;
+  if (m_copy_bytestotalsofar) pred_t = (int) ((t/1000) * m_total_copy_size / m_copy_bytestotalsofar);
+
+  SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,v,0);
+  char tmp1[128],tmp2[128],tmp3[128];
+  format_size_string(m_copy_bytestotalsofar,tmp1);
+  format_size_string(m_total_copy_size,tmp2);
+  format_size_string((m_copy_bytestotalsofar * 1000) / t,tmp3);
+
+  sprintf(buf,"%d%%: %d file(s) (%s/%s) copied at %s/s, %d file(s) deleted.\r\nElapsed Time: %d:%02d, Time Remaining: %d:%02d",v/100,
+    m_copy_files,
+    tmp1,
+    tmp2,
+    tmp3,
+    m_copy_deletes,
+    t/60000,(t/1000)%60,
+    (pred_t-t/1000)/60,(pred_t-t/1000)%60);
   SetDlgItemText(hwndDlg,IDC_TOTALPOS,p);
 }
 
@@ -765,8 +859,8 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       m_copy_curcopy=0;
       m_copy_entrypos=-1;
       m_copy_done=0;
-      m_copy_bytestotal=0;
-      SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,ListView_GetItemCount(m_listview)));
+      m_copy_bytestotalsofar=0;
+      SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,0,0);
       SetTimer(hwndDlg,60,50,NULL);
     return 0;
@@ -802,7 +896,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           if (!m_copy_curcopy)
           {
             m_copy_entrypos++;
-            SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,m_copy_entrypos,0);
+            m_next_statusupdate=0;
 
             if (m_copy_entrypos >= ListView_GetItemCount(m_listview))
             {
