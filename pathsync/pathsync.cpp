@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <commctrl.h>
+#include <shlobj.h>
 #include <search.h>
 #include <stdlib.h>
 
@@ -77,6 +78,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             m_comparing=0;
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
+            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
+            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
           }
           else
           {
@@ -105,13 +108,33 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               SetTimer(hwndDlg,32,200,NULL);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),0);
               EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),0);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),0);
+              EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),0);
             }
 
           }
         break;
         case IDOK:
+        break;
         case IDCANCEL:
           EndDialog(hwndDlg,1);
+        break;
+        case IDC_BROWSE1:
+        case IDC_BROWSE2:
+          {
+            char name[1024];
+            BROWSEINFO bi={hwndDlg,NULL,name,"Choose a Directory",BIF_RETURNONLYFSDIRS,NULL,};
+            ITEMIDLIST *id=SHBrowseForFolder(&bi);
+            if (id)
+            {
+				      SHGetPathFromIDList( id, name );        
+
+	            IMalloc *m;
+	            SHGetMalloc(&m);
+	            m->Free(id);
+              SetDlgItemText(hwndDlg,LOWORD(wParam) == IDC_BROWSE1 ? IDC_PATH1 : IDC_PATH2, name);
+            }
+          }
         break;
       }
     break;
@@ -232,7 +255,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               }
               else 
               {
-                if ((*p)->fileSizeHigh == (*res)->fileSizeHigh && (*p)->fileSizeLow == (*res)->fileSizeLow && !memcmp(&(*p)->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME)))
+                int dateMatch = !memcmp(&(*p)->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME));
+                int sizeMatch = (*p)->fileSizeHigh == (*res)->fileSizeHigh && 
+                    (*p)->fileSizeLow == (*res)->fileSizeLow;
+                if (sizeMatch && dateMatch)
                 {
                   // match, woo! do nothing
                 }
@@ -243,7 +269,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   lvi.pszText = (*p)->relativeFileName.Get();
                   lvi.lParam = 0;
                   ListView_InsertItem(m_listview,&lvi);
-                  ListView_SetItemText(m_listview,x,1,"Different");
+                  ListView_SetItemText(m_listview,x,1,
+                    sizeMatch ? "Dates differ" : dateMatch ? "Sizes differ" : "Sizes and dates differ"
+                    );
                   ListView_SetItemText(m_listview,x,2,"?");
       //            GFC_String str2("Files differ in date or size: ");
     //              str2.Append((*p)->relativeFileName.Get());
@@ -307,6 +335,8 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             m_comparing=0;
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH1),1);
             EnableWindow(GetDlgItem(hwndDlg,IDC_PATH2),1);
+            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE1),1);
+            EnableWindow(GetDlgItem(hwndDlg,IDC_BROWSE2),1);
           }
           in_timer=0;
         }
