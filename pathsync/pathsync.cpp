@@ -26,7 +26,7 @@ public:
   ~dirItem() { }
 
   GFC_String relativeFileName;
-  DWORD fileSizeLow, fileSizeHigh;
+  ULARGE_INTEGER fileSize;
   FILETIME lastWriteTime;
 
   int refcnt;
@@ -101,8 +101,7 @@ void calcStats(HWND hwndDlg)
       if (its[!isSend])
       {
         totalfilescopy++;
-        totalbytescopy.QuadPart += its[!isSend]->fileSizeLow;
-        totalbytescopy.HighPart += its[!isSend]->fileSizeHigh;
+        totalbytescopy.QuadPart += its[!isSend]->fileSize.QuadPart;
       }
       else // delete
       {
@@ -292,8 +291,6 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (!strcmp(buf,ACTION_RECV)) sel|=1;
                   else if (!strcmp(buf,ACTION_SEND)) sel|=2;
                   else if (!strcmp(buf,ACTION_NONE)) sel|=4;
-
-                  if (sel != 0 && sel != 1 && sel != 2 && sel != 4) break;
                 }
               }
               if (sel == 1)
@@ -390,7 +387,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     if (m_curscanner_relpath[x].Get()[0]) di->relativeFileName.Append("\\");
                     di->relativeFileName.Append(ptr);
 
-                    di->fileSizeLow = m_curscanner[x].GetCurrentFileSize(&di->fileSizeHigh);
+                    di->fileSize.LowPart = m_curscanner[x].GetCurrentFileSize(&di->fileSize.HighPart);
                     m_curscanner[x].GetCurrentLastWriteTime(&di->lastWriteTime);
 
                     m_files[x].Add(di);
@@ -439,6 +436,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           }
           else if (m_comparing == 8) // sort 2!
           {
+            // this isn't really necessary, but it's fast and then provides consistent output for the ordering
             if (m_files[1].GetSize()>1) 
               qsort(m_files[1].GetList(),m_files[1].GetSize(),sizeof(dirItem *),(int (*)(const void*, const void*))filenameCompareFunction);
             m_comparing++;
@@ -474,9 +472,12 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               else 
               {
                 (*res)->refcnt++;
-                int dateMatch = !memcmp(&(*p)->lastWriteTime,&(*res)->lastWriteTime,sizeof(FILETIME));
-                int sizeMatch = (*p)->fileSizeHigh == (*res)->fileSizeHigh && 
-                    (*p)->fileSizeLow == (*res)->fileSizeLow;
+                ULARGE_INTEGER fta=*(ULARGE_INTEGER *)&(*p)->lastWriteTime;
+                ULARGE_INTEGER ftb=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
+                __int64 datediff = fta.QuadPart - ftb.QuadPart;
+                if (datediff < 0) datediff=-datediff;
+                int dateMatch = datediff < 10000000; // if difference is less than 1s, than they are equal
+                int sizeMatch = (*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart;
                 if (!sizeMatch || !dateMatch)
                 {
                   int x=ListView_GetItemCount(m_listview);
@@ -491,9 +492,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                   if (!dateMatch)
                   {
-                    ULARGE_INTEGER a=*(ULARGE_INTEGER *)&(*p)->lastWriteTime;
-                    ULARGE_INTEGER b=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
-                    if (a.QuadPart > b.QuadPart) 
+                    if (fta.QuadPart > ftb.QuadPart) 
                     {
                       datedesc="Remote Newer";
                     }
@@ -504,12 +503,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   }
                   if (!sizeMatch)
                   {
-                    ULARGE_INTEGER a,b;
-                    a.LowPart = (*p)->fileSizeLow;
-                    a.HighPart = (*p)->fileSizeHigh;
-                    b.LowPart = (*res)->fileSizeLow;
-                    b.HighPart = (*res)->fileSizeHigh;
-                    if (a.QuadPart > b.QuadPart) 
+                    if ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart) 
                     {
                       sizedesc="Remote Larger";
                     }
