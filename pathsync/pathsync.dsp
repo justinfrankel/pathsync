@@ -121,6 +121,10 @@ SOURCE=..\GFC\string.h
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
 # Begin Source File
 
+SOURCE=.\icon1.ico
+# End Source File
+# Begin Source File
+
 SOURCE=.\res.rc
 # End Source File
 # End Group

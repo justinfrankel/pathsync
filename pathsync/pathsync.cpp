@@ -127,7 +127,10 @@ void calcStats(HWND hwndDlg)
   if (!totalfilesdelete && !totalfilescopy)
   {
     strcat(buf,"not perform any actions");
+    EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
   }
+  else EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
+
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
 }
 
@@ -136,6 +139,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   switch (uMsg)
   {
     case WM_INITDIALOG:
+      SetClassLong(hwndDlg,GCL_HICON,(long)LoadIcon(g_hInstance,MAKEINTRESOURCE(IDI_ICON1)));
       m_listview=GetDlgItem(hwndDlg,IDC_LIST1);
       {
         LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,300,"Filename"};
