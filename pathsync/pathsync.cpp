@@ -582,14 +582,15 @@ class fileCopier
       {
         GFC_String tmp(dest);
         char *p=tmp.Get();
-        char c='c';
         if (*p) 
         {
           p = skip_root(tmp.Get());
-          if (p) while (c)
+          if (p) for (;;)
           {
             while (*p != '\\' && *p) p=CharNext(p);
-            c=*p;
+            if (!*p) break;
+
+            char c=*p;
             *p=0;
             CreateDirectory(tmp.Get(),NULL);
             *p++ = c;
