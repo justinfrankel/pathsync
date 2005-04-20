@@ -1,5 +1,11 @@
 PathSync version history:
 
+v0.3 (4/20/05):
++ commandline option -systray (courtesy Francis Gastellu)
++ include/exclude file pattern list, uses ';' as separator (courtesy Francis Gastellu)
++ -autorun command line option (courtesy Alan Davies) 
++ logging option (useful for -autorun or normal use)
+
 v0.2 (3/08/05):
 + support for PSS (pathsync settings) files 
   + menu items to load/save

@@ -18,10 +18,14 @@
 #define IDC_GO                          1007
 #define IDC_DEST                        1007
 #define IDC_TOTALPOS                    1008
+#define IDC_LOGPATH                     1008
 #define IDC_TOTALPROGRESS               1009
+#define IDC_LOGBROWSE                   1009
 #define IDC_FILEPROGRESS                1010
 #define IDC_STATS                       1010
 #define IDC_FILEPOS                     1011
+#define IDC_LOGBROWSE2                  1011
+#define IDC_MASKHELP                    1011
 #define IDC_CHECK1                      1012
 #define IDC_REMOTE_LABEL                1013
 #define IDC_IGNORE_DATE                 1014
@@ -29,6 +33,13 @@
 #define IDC_IGNORE_MISSREMOTE           1016
 #define IDC_IGNORE_SIZE                 1017
 #define IDC_DEFBEHAVIOR                 1018
+#define IDC_LOG                         1019
+#define IDC_INCLUDE_FILES               1020
+#define IDC_EXCLUDE_FILES               1021
+#define IDC_EXCLUDE_LABEL               1022
+#define IDC_LOCAL_LABEL                 1023
+#define IDC_IGNORE_LABEL                1024
+#define IDC_INCLUDE_LABEL               1025
 #define IDM_2TO1                        40001
 #define IDM_1TO2                        40002
 #define IDM_NOACTION                    40003
@@ -43,7 +54,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        109
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1019
+#define _APS_NEXT_CONTROL_VALUE         1027
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

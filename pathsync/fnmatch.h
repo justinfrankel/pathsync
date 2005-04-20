@@ -27,10 +27,8 @@ Cambridge, MA 02139, USA.  */
 #define	FNM_NOESCAPE	(1 << 1)/* Backslashes don't quote special chars.  */
 #undef FNM_PERIOD
 #define	FNM_PERIOD	(1 << 2)/* Leading `.' is matched only explicitly.  */
-#undef FNM_STARDOTSTAR
-#define FNM_STARDOTSTAR (1 << 3) /* *.* matches everything, this is not the case on unix filesystems, but Dos/Win users expect this */
 #undef __FNM_FLAGS
-#define	__FNM_FLAGS	(FNM_PATHNAME|FNM_NOESCAPE|FNM_PERIOD|FNM_STARDOTSTAR)
+#define	__FNM_FLAGS	(FNM_PATHNAME|FNM_NOESCAPE|FNM_PERIOD)
 
 /* Value returned by `fnmatch' if STRING does not match PATTERN.  */
 #undef FNM_NOMATCH

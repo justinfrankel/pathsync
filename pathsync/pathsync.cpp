@@ -1,6 +1,12 @@
 /*
     PathSync - pathsync.cpp
-    Copyright (C) 2004-2005 Cockos Incorporated
+    Copyright (C) 2004-2005 Cockos Incorporated and others
+
+    Other contributors:
+       Alan Davies
+       Francis Gastellu
+    
+    And now using filename matching from the GNU C library!
 
     PathSync is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +30,7 @@
 #include <stdio.h>
 #include <search.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "resource.h"
 
@@ -32,8 +39,9 @@
 #include "../WDL/dirscan.h"
 
 #include "../WDL/wingui/wndsize.h"
+#include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.2"
+#define PATHSYNC_VER "v0.3"
 
 HINSTANCE g_hInstance;
 
@@ -74,6 +82,8 @@ WDL_String m_curscanner_relpath[2],m_curscanner_basepath[2];
 WDL_PtrList<dirItem> m_files[2];
 WDL_PtrList<dirItem> m_listview_recs;
 
+WDL_PtrList<WDL_String> m_include_files;
+
 int g_ignflags,g_defbeh; // used only temporarily
 int m_comparing; // second and third bits mean done for each side
 int m_comparing_pos,m_comparing_pos2;
@@ -81,8 +91,14 @@ HWND m_listview;
 char m_inifile[2048];
 char m_lastsettingsfile[2048];
 char g_loadsettingsfile[2048];
+bool g_autorun = false;
+bool g_systray = false;
+bool g_intray = false;
+HWND g_copydlg = NULL;
+HWND g_dlg = NULL;
+int g_lasttraypercent = -1;
 
-const int endislist[]={IDC_STATS,IDC_PATH1,IDC_PATH2,IDC_BROWSE1,IDC_BROWSE2,IDC_IGNORE_SIZE,IDC_IGNORE_DATE,IDC_IGNORE_MISSLOCAL,IDC_IGNORE_MISSREMOTE,IDC_DEFBEHAVIOR};
+const int endislist[]={IDC_STATS,IDC_PATH1,IDC_PATH2,IDC_BROWSE1,IDC_BROWSE2,IDC_IGNORE_SIZE,IDC_IGNORE_DATE,IDC_IGNORE_MISSLOCAL,IDC_IGNORE_MISSREMOTE,IDC_DEFBEHAVIOR,IDC_LOG,IDC_LOGPATH,IDC_LOGBROWSE, IDC_LOCAL_LABEL, IDC_REMOTE_LABEL, IDC_IGNORE_LABEL, IDC_INCLUDE_LABEL };
 
 
 #define CLEARPTRLIST(xxx) { int x; for (x = 0; x < xxx.GetSize(); x ++) { delete xxx.Get(x); } xxx.Empty(); }
@@ -115,8 +131,48 @@ void format_size_string(__int64 size, char *str)
   else sprintf(str,"%.2lfTB",(double) size / 1099511627776.0);
 }
 
+FILE * g_log = 0;
 
-__int64 m_total_copy_size;
+void RestartLogging(HWND hwndDlg)
+{
+    // Always close and re-open, filename may have changed,
+    // logging may have been disabled in UI.
+    if (g_log)
+    {
+        fclose(g_log);
+        g_log = 0;
+    }
+
+    if (IsDlgButtonChecked(hwndDlg, IDC_LOG))
+    {
+        char name[1024] = "";
+        GetDlgItemText(hwndDlg, IDC_LOGPATH, name, sizeof name);
+        g_log=fopen(name, "at");
+
+        if (!g_log)
+        {
+            char message[2048];
+            sprintf(message, "Couldn't open logfile %s", name);
+            MessageBox(hwndDlg, message, "Error", 0);
+        }
+    }
+}
+
+void LogMessage(const char * pStr)
+{
+    if (g_log)
+    {
+        char timestr[100] = "";
+        time_t curtime = time(0);
+        strftime(timestr, sizeof timestr - 1, "%Y-%m-%d %H:%M:%S ", localtime(&curtime)); 
+        fprintf(g_log, timestr);
+        fprintf(g_log, pStr);
+        fprintf(g_log, "\n");
+        fflush(g_log);
+    }
+}
+
+__int64 m_total_copy_size = 0;
 
 void calcStats(HWND hwndDlg)
 {
@@ -171,6 +227,8 @@ void calcStats(HWND hwndDlg)
   }
   else EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);
 
+  LogMessage(buf);
+
   strcat(buf," (select and right click items to change their actions)");
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
   m_total_copy_size=totalbytescopy.QuadPart;
@@ -188,6 +246,103 @@ void set_current_settings_file(HWND hwndDlg, char *fn)
   SetWindowText(hwndDlg,buf);
 }
 
+#define WM_SYSTRAY              WM_USER + 0x200
+#define WM_COPYDIALOGEND        WM_USER + 0x201
+#define CMD_EXITPATHSYNC        30000
+#define CMD_SHOWWINDOWFROMTRAY  30001
+#define CMD_CANCELCOPY          30002
+#define CMD_CANCELANALYSIS      30003
+
+BOOL systray_add(HWND hwnd, UINT uID, HICON hIcon, LPSTR lpszTip)
+{
+  NOTIFYICONDATA tnid;
+  tnid.cbSize = sizeof(NOTIFYICONDATA);
+  tnid.hWnd = hwnd;
+  tnid.uID = uID;
+  tnid.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
+  tnid.uCallbackMessage = WM_SYSTRAY;
+  tnid.hIcon = hIcon;
+  lstrcpyn(tnid.szTip,lpszTip,sizeof(tnid.szTip)-1);
+  return (Shell_NotifyIcon(NIM_ADD, &tnid));
+}
+
+BOOL systray_del(HWND hwnd, UINT uID) {
+  NOTIFYICONDATA tnid;
+  tnid.cbSize = sizeof(NOTIFYICONDATA);
+  tnid.hWnd = hwnd;
+  tnid.uID = uID;
+  return(Shell_NotifyIcon(NIM_DELETE, &tnid));
+}
+
+BOOL systray_mod(HWND hwnd, UINT uID, LPSTR lpszTip) {
+  NOTIFYICONDATA tnid;
+  tnid.cbSize = sizeof(NOTIFYICONDATA);
+  tnid.hWnd = hwnd;
+  tnid.uID = uID;
+  tnid.uFlags = NIF_TIP;
+  strncpy(tnid.szTip,lpszTip,sizeof(tnid.szTip)-1);
+  return (Shell_NotifyIcon(NIM_MODIFY, &tnid));
+}
+
+void show_window_from_tray() 
+{
+  HWND wnd;
+  if (g_copydlg) wnd = g_copydlg;
+  else wnd = g_dlg;
+  if (IsIconic(wnd)) ShowWindow(wnd, SW_RESTORE);
+  else ShowWindow(wnd, SW_NORMAL);
+  SetForegroundWindow(wnd);
+  g_intray = false;
+}
+
+void free_pattern_list(WDL_PtrList<WDL_String> *list) 
+{
+  while (list->GetSize() > 0) 
+  { 
+    int idx = list->GetSize()-1; 
+    delete list->Get(idx); 
+    list->Delete(idx);
+  }
+}
+
+void parse_pattern_list(HWND hwndDlg, char *str, WDL_PtrList<WDL_String> *list) 
+{
+  char pattern[2048]="";
+  char *p = str;
+  char *d = pattern;
+  while (*p) 
+  {
+    if (*p == ';') 
+    {
+      *d = 0;
+      list->Add(new WDL_String(pattern));
+      *pattern = 0;
+      d = pattern,
+      p++;
+      continue;
+    }
+    *d++ = *p++;
+  }
+  if (*pattern) 
+  { 
+    *d = 0; 
+    list->Add(new WDL_String(pattern)); 
+  }
+}
+
+int test_file_pattern(char *file, WDL_PtrList<WDL_String> *list)
+{
+  for (int i=0;i<list->GetSize();i++)
+  {
+    char *p=list->Get(i)->Get();
+    int isnot=0;
+    if (*p == '!') isnot++,p++;
+
+    if (fnmatch(p, file, 0) == 0) return !isnot;
+  }
+  return 0;
+}
+
 void stopAnalyzeAndClearList(HWND hwndDlg)
 {
   if (m_comparing)
@@ -199,13 +354,15 @@ void stopAnalyzeAndClearList(HWND hwndDlg)
     int x;
     for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
       EnableWindow(GetDlgItem(hwndDlg,endislist[x]),1);
+    free_pattern_list(&m_include_files);
+    systray_mod(hwndDlg, 0, "PathSync");
+    g_lasttraypercent = -1;
   }
   clearFileLists(hwndDlg);
   SetDlgItemText(hwndDlg,IDC_STATS,"");
   SetDlgItemText(hwndDlg,IDC_STATUS,"");
   EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
 }
-
 
 int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
 {
@@ -220,6 +377,20 @@ int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
   CheckDlgButton(hwndDlg,IDC_IGNORE_MISSLOCAL,(ignflags&4)?BST_CHECKED:BST_UNCHECKED);
   CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
   SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_SETCURSEL,(WPARAM)GetPrivateProfileInt(sec,"defbeh",0,fn),0);
+  GetPrivateProfileString(sec,"logpath","",path,sizeof(path),fn);
+
+  if (strlen(path) && path[0] != '!')
+  {
+    CheckDlgButton(hwndDlg,IDC_LOG, 1);
+  }
+  else
+  {
+    CheckDlgButton(hwndDlg,IDC_LOG, 0);
+  }
+  SetDlgItemText(hwndDlg,IDC_LOGPATH, path);
+
+  GetPrivateProfileString(sec,"include","",path,sizeof(path),fn);
+  SetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,path);
 
   return GetPrivateProfileInt(sec,"pssversion",0,fn);
 }
@@ -243,8 +414,54 @@ void save_settings(HWND hwndDlg, char *sec, char *fn)
   WritePrivateProfileString(sec,"ignflags",path,fn);       
   wsprintf(path,"%d",SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_GETCURSEL,0,0));
   WritePrivateProfileString(sec,"defbeh",path,fn);
+
+  if (IsWindowEnabled(GetDlgItem(hwndDlg, IDC_LOG)))
+  {
+    GetDlgItemText(hwndDlg, IDC_LOGPATH, path, sizeof(path));
+    WritePrivateProfileString(sec, "logpath", path, fn);
+  }
+  else
+  {
+    path[0]='!';
+    GetDlgItemText(hwndDlg, IDC_LOGPATH, path+1, sizeof(path)-1);
+    WritePrivateProfileString(sec, "logpath", path, fn);
+  }
+  GetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,path,sizeof(path));
+  WritePrivateProfileString(sec,"include",path,fn);
 }
 
+
+void EnableOrDisableLoggingControls(HWND hwndDlg)
+{
+    if (IsDlgButtonChecked(hwndDlg, IDC_LOG))
+    {
+        EnableWindow(GetDlgItem(hwndDlg, IDC_LOGPATH),1);
+        EnableWindow(GetDlgItem(hwndDlg, IDC_LOGBROWSE),1);
+    }
+    else
+    {
+        EnableWindow(GetDlgItem(hwndDlg, IDC_LOGPATH), 0);
+        EnableWindow(GetDlgItem(hwndDlg, IDC_LOGBROWSE), 0);
+    }
+}
+
+void cancel_analysis(HWND dlg)
+{
+  if (m_comparing)
+  {
+    KillTimer(dlg,32);
+    SetDlgItemText(dlg,IDC_ANALYZE,"Analyze");
+    SetDlgItemText(dlg,IDC_STATUS,"Status: Stopped");
+    m_comparing=0;
+    int x;
+    for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
+      EnableWindow(GetDlgItem(dlg,endislist[x]),1);
+    free_pattern_list(&m_include_files);
+    systray_mod(dlg, 0, "PathSync");
+    g_lasttraypercent = -1;
+  }
+  if (g_autorun) PostQuitMessage(1);
+}
 
 BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -252,48 +469,69 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   switch (uMsg)
   {
     case WM_INITDIALOG:
-      resizer.init(hwndDlg);
-      resizer.init_item(IDC_PATH1, 0, 0, 0.5, 0);
-      resizer.init_item(IDC_BROWSE1, 0.5, 0, 0.5, 0);
-      resizer.init_item(IDC_REMOTE_LABEL, 0.5, 0, 0.5, 0);
-      resizer.init_item(IDC_PATH2, 0.5, 0, 1.0, 0);
-      resizer.init_item(IDC_BROWSE2, 1.0, 0, 1.0, 0);
-      resizer.init_item(IDC_ANALYZE, 1.0, 0, 1.0, 0);
-      resizer.init_item(IDC_STATUS, 0, 0, 1.0, 0);
-      resizer.init_item(IDC_LIST1, 0, 0, 1.0, 1.0);
-      resizer.init_item(IDC_STATS, 0, 1.0, 1.0, 1.0);
-      resizer.init_item(IDC_GO, 1.0, 1.0, 1.0, 1.0);
-      resizer.init_item(IDC_DEFBEHAVIOR,0.0,0.0,1.0,0.0);
-
-      SetWindowText(hwndDlg,"PathSync " PATHSYNC_VER " - Analysis");
-      
-
-      SetClassLong(hwndDlg,GCL_HICON,(long)LoadIcon(g_hInstance,MAKEINTRESOURCE(IDI_ICON1)));
-      m_listview=GetDlgItem(hwndDlg,IDC_LIST1);
       {
-        LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,300,"Filename"};
-        ListView_InsertColumn(m_listview,0,&lvc);
-        lvc.pszText="Status";
-        lvc.cx=200;
-        ListView_InsertColumn(m_listview,1,&lvc);
-        lvc.pszText="Action";
-        lvc.cx=100;
-        ListView_InsertColumn(m_listview,2,&lvc);
-        int x;
-        for (x = 0; x < sizeof(g_syncactions) / sizeof(g_syncactions[0]); x ++)
+        resizer.init(hwndDlg);
+        resizer.init_item(IDC_PATH1, 0, 0, 0.5, 0);
+        resizer.init_item(IDC_BROWSE1, 0.5, 0, 0.5, 0);
+        resizer.init_item(IDC_REMOTE_LABEL, 0.5, 0, 0.5, 0);
+        resizer.init_item(IDC_PATH2, 0.5, 0, 1.0, 0);
+        resizer.init_item(IDC_BROWSE2, 1.0, 0, 1.0, 0);
+        resizer.init_item(IDC_ANALYZE, 1.0, 0, 1.0, 0);
+        resizer.init_item(IDC_STATUS, 0, 0, 1.0, 0);
+        resizer.init_item(IDC_LIST1, 0, 0, 1.0, 1.0);
+        resizer.init_item(IDC_STATS, 0, 1.0, 1.0, 1.0);
+        resizer.init_item(IDC_GO, 1.0, 1.0, 1.0, 1.0);
+        resizer.init_item(IDC_DEFBEHAVIOR,0.0,0.0,1.0,0.0);
+        resizer.init_item(IDC_INCLUDE_FILES, 0.0, 0, 1, 0);
+        resizer.init_item(IDC_MASKHELP,1,0,1,0);
+
+        SetWindowText(hwndDlg,"PathSync " PATHSYNC_VER " - Analysis");
+      
+        HICON icon = LoadIcon(g_hInstance,MAKEINTRESOURCE(IDI_ICON1));
+        SetClassLong(hwndDlg,GCL_HICON,(long)icon);
+  		  if (g_systray) systray_add(hwndDlg, 0, icon, "PathSync");
+        m_listview=GetDlgItem(hwndDlg,IDC_LIST1);
         {
-          SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_ADDSTRING,0,(LPARAM)g_syncactions[x]);
+          LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,300,"Filename"};
+          ListView_InsertColumn(m_listview,0,&lvc);
+          lvc.pszText="Status";
+          lvc.cx=200;
+          ListView_InsertColumn(m_listview,1,&lvc);
+          lvc.pszText="Action";
+          lvc.cx=100;
+          ListView_InsertColumn(m_listview,2,&lvc);
+          int x;
+          for (x = 0; x < sizeof(g_syncactions) / sizeof(g_syncactions[0]); x ++)
+          {
+            SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_ADDSTRING,0,(LPARAM)g_syncactions[x]);
+          }
+
         }
 
-      }
-
-      if (g_loadsettingsfile[0] && load_settings(hwndDlg,"pathsync settings",g_loadsettingsfile)>0)
-      {
-        set_current_settings_file(hwndDlg,g_loadsettingsfile);
-      }
-      else load_settings(hwndDlg,"config",m_inifile);
-      g_loadsettingsfile[0]=0;
+        SetDlgItemText(hwndDlg, IDC_STATS, "");
+        
+        if (g_loadsettingsfile[0] && load_settings(hwndDlg,"pathsync settings",g_loadsettingsfile)>0)
+        {
+          set_current_settings_file(hwndDlg,g_loadsettingsfile);
+        }
+        else load_settings(hwndDlg,"config",m_inifile);
+        g_loadsettingsfile[0]=0;
  
+        EnableOrDisableLoggingControls(hwndDlg);
+    
+        if (g_autorun)
+        {
+          if (IsWindowEnabled(GetDlgItem(hwndDlg, IDC_ANALYZE)))
+          {
+            PostMessage(hwndDlg, WM_COMMAND, MAKEWPARAM(IDC_ANALYZE, 1), (LPARAM)GetDlgItem(hwndDlg, IDC_ANALYZE));
+          }
+          else if (g_autorun)
+          {
+            PostQuitMessage(1);
+          }
+        }
+      }
+        
     return 0;
     case WM_GETMINMAXINFO:
       {
@@ -306,14 +544,57 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       if (wParam != SIZE_MINIMIZED) {
         resizer.onResize();
       }
+      if (g_systray)
+      {
+			  if (wParam == SIZE_MINIMIZED)
+			  {
+          g_intray = true;
+				  ShowWindow(hwndDlg,SW_HIDE);
+			  }
+			  else if (wParam == SIZE_RESTORED)
+			  {
+          g_intray = false;
+				  ShowWindow(hwndDlg,SW_SHOW);
+			  }
+      }
     return 0;
 
+    case WM_SYSCOMMAND:
+      switch (wParam)
+      {
+        case SC_CLOSE: PostQuitMessage(0); break;
+      }
+    return 0;
     case WM_DESTROY:
+      systray_del(hwndDlg, 0);
       save_settings(hwndDlg,"config",m_inifile);
     return 0;
-    case WM_CLOSE:
-      EndDialog(hwndDlg,1);
-    break;
+    case WM_SYSTRAY: 
+			switch (LOWORD(lParam))
+			{
+				case WM_LBUTTONDOWN:
+          show_window_from_tray();
+				return 0;
+        case WM_RBUTTONUP:
+          {
+            SetForegroundWindow(g_dlg);
+            HMENU popup = CreatePopupMenu();
+            POINT pt;
+            GetCursorPos(&pt);
+            if (g_intray)
+            {
+              InsertMenu(popup, -1, MF_STRING|MF_BYCOMMAND, CMD_SHOWWINDOWFROMTRAY, g_copydlg ? "&Show Progress" : "&Show Analysis");
+              if (m_comparing) InsertMenu(popup, -1, MF_STRING|MF_BYCOMMAND, CMD_CANCELANALYSIS, "&Cancel Analysis");
+              if (g_copydlg) InsertMenu(popup, -1, MF_STRING|MF_BYCOMMAND, CMD_CANCELCOPY, "&Cancel Synchronization");
+              if (!g_copydlg && !m_comparing) InsertMenu(popup, -1, MF_SEPARATOR, 0, NULL);
+            }
+            if (!g_copydlg && !m_comparing) InsertMenu(popup, -1, MF_STRING|MF_BYCOMMAND, CMD_EXITPATHSYNC, "&Exit PathSync");
+            SetMenuDefaultItem(popup, g_intray ? CMD_SHOWWINDOWFROMTRAY : CMD_EXITPATHSYNC, FALSE);
+            TrackPopupMenuEx(popup, TPM_LEFTALIGN|TPM_LEFTBUTTON, pt.x, pt.y, g_dlg, NULL);
+          }
+        return 0;
+			}
+    return 0;
     case WM_DROPFILES:
       {
         HDROP hDrop=(HDROP)wParam;
@@ -403,7 +684,19 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             "About PathSync",MB_OK);
         break;
         case IDM_EXIT:
-          PostMessage(hwndDlg,WM_CLOSE,0,0);
+          PostQuitMessage(0);
+        break;
+        case CMD_SHOWWINDOWFROMTRAY: 
+          show_window_from_tray();
+        break;
+        case CMD_EXITPATHSYNC:
+          if (!g_copydlg) PostQuitMessage(0);
+        break;
+        case CMD_CANCELCOPY:
+          if (g_copydlg) PostMessage(g_copydlg, WM_COMMAND, IDCANCEL, 0);
+        break;
+        case CMD_CANCELANALYSIS:
+          cancel_analysis(hwndDlg);
         break;
         case IDC_DEFBEHAVIOR:
           if (HIWORD(wParam) == CBN_SELCHANGE)
@@ -414,16 +707,14 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDC_ANALYZE:
           if (m_comparing)
           {
-            KillTimer(hwndDlg,32);
-            SetDlgItemText(hwndDlg,IDC_ANALYZE,"Analyze");
-            SetDlgItemText(hwndDlg,IDC_STATUS,"Status: Stopped");
-            m_comparing=0;
-            int x;
-            for (x = 0; x < sizeof(endislist)/sizeof(endislist[0]); x ++)
-              EnableWindow(GetDlgItem(hwndDlg,endislist[x]),1);
+            cancel_analysis(hwndDlg);
           }
           else
           {
+            RestartLogging(hwndDlg);
+            LogMessage("Analysis");
+            systray_mod(hwndDlg, 0, "PathSync - Analysis in progress");
+
             g_ignflags=0;
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) g_ignflags |= 1;
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) g_ignflags |= 2;
@@ -440,13 +731,42 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             GetDlgItemText(hwndDlg,IDC_PATH2,buf,sizeof(buf));
             m_curscanner_basepath[1].Set(buf);
 
+            // just in case it didn't get cleared at the end of the last analysis, somehow
+            free_pattern_list(&m_include_files);
+
+            GetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,buf,sizeof(buf));
+            parse_pattern_list(hwndDlg, buf, &m_include_files);
+
             m_curscanner_relpath[0].Set("");
             m_curscanner_relpath[1].Set("");
 
-            if (m_curscanner[0].First(m_curscanner_basepath[0].Get()) || 
-                m_curscanner[1].First(m_curscanner_basepath[1].Get()))
+            WDL_String msgLocal("Local Path: ");
+            msgLocal.Append(m_curscanner_basepath[0].Get());
+            LogMessage(msgLocal.Get());
+            
+            WDL_String msgRemote("Remote Path: ");
+            msgRemote.Append(m_curscanner_basepath[1].Get());
+            LogMessage(msgRemote.Get());
+            
+            if (m_curscanner[0].First(m_curscanner_basepath[0].Get()))
             {
-              MessageBox(hwndDlg,"Error reading a path","Error",MB_OK);
+              WDL_String msg("Error reading path: ");
+              msg.Append(m_curscanner_basepath[0].Get());
+              if (!g_autorun)
+        	  {
+                MessageBox(hwndDlg, msg.Get(), "Error", MB_OK);
+              }
+              LogMessage(msg.Get());
+        	}
+        	else if (m_curscanner[1].First(m_curscanner_basepath[1].Get()))
+        	{
+              WDL_String msg("Error reading path: ");
+              msg.Append(m_curscanner_basepath[1].Get());
+              if (!g_autorun)
+              {
+                MessageBox(hwndDlg, msg.Get(), "Error", MB_OK);
+              }
+              LogMessage(msg.Get());
             }
             else
             {
@@ -464,6 +784,20 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
         case IDOK:
         break;
+        case IDC_MASKHELP:
+          MessageBox(hwndDlg,"The filename mask box allows you to specify a list of rules to\r\n"
+                             "let you either include or exclude files from the analysis/copy.\r\n"
+                             "The rules are seperated by semicolons, and are evaluated from left\r\n"
+                             "to right. When a rule is matched, no further rules are checked.\r\n"
+                             "Rules beginning with !, when matched, mean the item is excluded.\r\n"
+                             "Examples:\r\n"
+                             "\t*\t\t (includes everything)\r\n"
+                             "\t!*.pch;*\t\t (includes everything but files ending in .pch)\r\n"
+                             "\t*.mp3;*.jpg;*.avi\t(includes only mp3, jpg, and avi files)\r\n"
+                             "\t!temp\\;*\t\t(includes everything except the temp\\ directory)\r\n"
+                                   
+            ,"Filename Mask Help", MB_OK);
+        break;
         case IDC_BROWSE1:
         case IDC_BROWSE2:
           {
@@ -478,23 +812,60 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	            SHGetMalloc(&m);
 	            m->Free(id);
               SetDlgItemText(hwndDlg,LOWORD(wParam) == IDC_BROWSE1 ? IDC_PATH1 : IDC_PATH2, name);
+                m->Release();
+            }
+          }
+        break;            
+        case IDC_LOGBROWSE:
+          {
+            char name[1024] = "";
+            OPENFILENAME ofn = {0};
+            ofn.lStructSize = sizeof OPENFILENAME;
+            ofn.hwndOwner = hwndDlg;
+            ofn.lpstrTitle = "Choose a Log File";
+            ofn.lpstrFilter = "Log Files (.log)\0*.log\0All Files (*.*)\0*.*\0";
+            ofn.lpstrFile = name;
+            ofn.nMaxFile = sizeof name;
+
+            if (GetOpenFileName(&ofn))
+            {
+              SetDlgItemText(hwndDlg, IDC_LOGPATH, name);
             }
           }
         break;
         case IDC_GO:
           if (ListView_GetItemCount(m_listview))
           {
+            if (!g_autorun) // no need for duplicate request to run during autorun
+            {
+              RestartLogging(hwndDlg);
+            }
+            LogMessage("Sync");
+
             ShowWindow(hwndDlg,SW_HIDE);
-            DialogBox(g_hInstance,MAKEINTRESOURCE(IDD_DIALOG2),NULL,copyFilesProc);
-            clearFileLists(hwndDlg);
-            SetDlgItemText(hwndDlg,IDC_STATS,"");
-            SetDlgItemText(hwndDlg,IDC_STATUS,"");
-            EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
-            ShowWindow(hwndDlg,SW_SHOW);
+            g_copydlg = CreateDialog(g_hInstance,MAKEINTRESOURCE(IDD_DIALOG2),NULL,copyFilesProc);
+            if (!g_systray || !g_intray) ShowWindow(g_copydlg, SW_NORMAL);
           }
+        break;
+        case IDC_LOG:
+            EnableOrDisableLoggingControls(hwndDlg);
         break;
       }
     break;
+    case WM_COPYDIALOGEND:
+      DestroyWindow(g_copydlg);
+      g_copydlg = NULL;
+      clearFileLists(hwndDlg);
+      SetDlgItemText(hwndDlg,IDC_STATS,"");
+      SetDlgItemText(hwndDlg,IDC_STATUS,"");
+      EnableWindow(GetDlgItem(hwndDlg,IDC_GO),0);
+      if (!g_systray || !g_intray) ShowWindow(hwndDlg,SW_SHOW);
+
+      if (g_autorun)
+      {
+        PostQuitMessage(1);
+      }
+    return 0;
     case WM_NOTIFY:
       {
         LPNMHDR l=(LPNMHDR)lParam;
@@ -596,6 +967,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
       if (wParam == 32)
       {
+        bool finished = false;
         static int in_timer;
         if (!in_timer)
         {
@@ -614,7 +986,17 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   char *ptr=m_curscanner[x].GetCurrentFN();
                   if (strcmp(ptr,".") && strcmp(ptr,".."))
                   {
-                    if (m_curscanner[x].GetCurrentIsDirectory())
+                    WDL_String relname;
+                    relname.Set(m_curscanner_relpath[x].Get());
+                    if (m_curscanner_relpath[x].Get()[0]) relname.Append("\\");
+                    relname.Append(ptr);
+                    if (m_curscanner[x].GetCurrentIsDirectory()) relname.Append("\\");
+
+                    if (!test_file_pattern(relname.Get(), &m_include_files))
+                    {
+                      // do nothing
+                    }
+                    else if (m_curscanner[x].GetCurrentIsDirectory())
                     {
                       WDL_String *s=new WDL_String(m_curscanner_relpath[x].Get());
                       if (m_curscanner_relpath[x].Get()[0]) s->Append("\\");
@@ -624,9 +1006,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     else
                     {
                       dirItem *di=new dirItem;
-                      di->relativeFileName.Set(m_curscanner_relpath[x].Get());
-                      if (m_curscanner_relpath[x].Get()[0]) di->relativeFileName.Append("\\");
-                      di->relativeFileName.Append(ptr);
+                      di->relativeFileName.Set(relname.Get());
 
                       di->fileSize.LowPart = m_curscanner[x].GetCurrentFileSize(&di->fileSize.HighPart);
                       m_curscanner[x].GetCurrentLastWriteTime(&di->lastWriteTime);
@@ -637,7 +1017,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                       str2.Append(di->relativeFileName.Get());
                       str2.Append("\n");
                       SetDlgItemText(hwndDlg,IDC_STATUS,str2.Get());
-  //                    OutputDebugString(str2.Get());
+    //                    OutputDebugString(str2.Get());
                     }
                   }
 
@@ -833,11 +1213,30 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 EnableWindow(GetDlgItem(hwndDlg,endislist[x]),1);
               EnableWindow(GetDlgItem(hwndDlg,IDC_GO),1);     
               calcStats(hwndDlg);
+
+              free_pattern_list(&m_include_files);
+              systray_mod(hwndDlg, 0, "PathSync");
+              g_lasttraypercent = -1;
+    
+              finished = true;
               break; // exit loop
             }
           } // while
           in_timer=0;
         } // if (!in_timer)
+
+        if (finished && g_autorun)
+        {
+          if (IsWindowEnabled(GetDlgItem(hwndDlg, IDC_GO)))
+          {
+            PostMessage(hwndDlg, WM_COMMAND, MAKEWPARAM(IDC_GO, 1), (LPARAM)GetDlgItem(hwndDlg, IDC_GO));
+          }
+          else if (g_autorun)
+          {
+            PostQuitMessage(1);
+          }
+        }
+
       } // (wParam == 32)
     break;
   }
@@ -884,8 +1283,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
   strcat(m_inifile,".ini");
 
 
-
-
   {
     int state=0;
     char *p=lpszCmdParam;
@@ -909,8 +1306,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
       switch (state)
       {
         case 0:
-          if (!stricmp(parm,"-loadpss")) state=1;
-          else state=-1;
+          if (!stricmp(parm,"-loadpss"))
+          {
+            state=1;
+          }
+          else if (!stricmp(parm,"-autorun"))
+          {
+            g_autorun = true;
+          }
+          else if (!stricmp(parm,"-systray"))
+          {
+            g_systray = true;
+          }
+          else
+          {
+            state=-1;
+          }
         break;
         case 1:
           if (parm[0]=='-') state=-1;
@@ -925,14 +1336,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdPa
     }
     if (state)
     {
-      MessageBox(NULL,"Usage:\r\npathsync [-loadpss <filename>]","PathSync Usage",MB_OK);
+      MessageBox(NULL,"Usage:\r\npathsync [-loadpss <filename> [-autorun]]","PathSync Usage",MB_OK);
       return 0;
     }
   }
 
+  // fg, 4/20/2005, changed from DialogBox to CreateDialogBox + messagequeue in order to be able to start the dialog hidden
+  g_dlg = CreateDialog(hInstance,MAKEINTRESOURCE(IDD_DIALOG1),NULL,mainDlgProc);
+  if (!g_systray) { ShowWindow(g_dlg, SW_NORMAL); }
+  else g_intray = true;
 
+  MSG msg;
+  while (GetMessage(&msg, (HWND) NULL, 0, 0)) 
+  { 
+    if (IsDialogMessage(g_dlg, &msg)) continue;
+    if (g_copydlg && IsDialogMessage(g_copydlg, &msg)) continue;
+    // should never get here, but this code is there in case future extentions use CreateWindow*
+    TranslateMessage(&msg); 
+    DispatchMessage(&msg); 
+  } 
 
-  DialogBox(hInstance,MAKEINTRESOURCE(IDD_DIALOG1),NULL,mainDlgProc);
+  // Calls WM_DESTROY, saves settings
+  DestroyWindow(g_dlg);
 
   return 0;
 }
@@ -969,6 +1394,7 @@ class fileCopier
         WDL_String tmp("Error opening source: ");
         tmp.Append(src);
 
+        LogMessage(tmp.Get());
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
         return -1;
       }
@@ -1001,6 +1427,7 @@ class fileCopier
         WDL_String tmp("Error opening tmpdest: ");
         tmp.Append(m_tmpdestfn.Get());
 
+        LogMessage(tmp.Get());
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
         return -1;
       }
@@ -1023,6 +1450,7 @@ class fileCopier
       {
         WDL_String tmp("Error reading: ");
         tmp.Append(m_relfn.Get());
+        LogMessage(tmp.Get());
         SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
         return -1;
       }
@@ -1037,6 +1465,7 @@ class fileCopier
         {
           WDL_String tmp("Error writing to: ");
           tmp.Append(m_relfn.Get());
+          LogMessage(tmp.Get());
           SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
           return -1;
         }
@@ -1097,8 +1526,20 @@ class fileCopier
         {
           WDL_String tmp("Error finalizing: ");
           tmp.Append(m_relfn.Get());
+          LogMessage(tmp.Get());
           SendDlgItemMessage(hwndParent,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)tmp.Get());
           return -1;
+        }
+        else
+        {
+          char text[2048] = "";
+          unsigned int tm=max(now-m_stt, 1);
+          char tmp2[128],tmp3[128];
+            
+          format_size_string(m_filesize.QuadPart,tmp2);
+          format_size_string((m_filepos * 1000)/tm,tmp3);
+          sprintf(text,"%s @ %s/s %s", tmp2, tmp3, m_fulldestfn.Get());
+          LogMessage(text);
         }
 
         // close handles, delete/rename files
@@ -1160,6 +1601,37 @@ void updateXferStatus(HWND hwndDlg)
     t/60000,(t/1000)%60,
     (pred_t-t/1000)/60,(pred_t-t/1000)%60);
   SetDlgItemText(hwndDlg,IDC_TOTALPOS,p);
+  if (g_intray)
+  {
+    if (v/100 != g_lasttraypercent)
+    {
+      sprintf(buf, "PathSync - Synchronizing - %d%%", v/100);
+      systray_mod(g_dlg, 0, buf);
+      g_lasttraypercent = v/100;
+    }
+  }
+}
+
+void LogEndSyncMessage()
+{
+    char buf[512];
+    unsigned int t = GetTickCount() - m_copy_starttime;
+    char tmp1[128], tmp2[128];
+
+    format_size_string(m_total_copy_size, tmp1);
+    format_size_string(t ? (m_total_copy_size * 1000) / t : 0, tmp2);
+
+    sprintf(buf, "%d file%s copied (%s @ %s/s), %d file%s deleted. Elapsed Time: %d:%02d",
+        m_copy_files,
+        m_copy_files==1?"":"s",
+        tmp1,
+        tmp2,
+        m_copy_deletes,
+        m_copy_deletes==1?"":"s",
+        t/60000,
+        (t/1000)%60);
+
+    LogMessage(buf);
 }
 
 BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -1222,7 +1694,11 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               m_copy_done=1;
               SetDlgItemText(hwndDlg,IDC_FILEPOS,"");
               SetDlgItemText(hwndDlg,IDCANCEL,"Close");
-              if (IsDlgButtonChecked(hwndDlg,IDC_CHECK1)) EndDialog(hwndDlg,1);
+              if (IsDlgButtonChecked(hwndDlg,IDC_CHECK1) || g_autorun)
+              {
+                PostMessage(g_dlg, WM_COPYDIALOGEND, 1, 0);
+              }
+              LogEndSyncMessage();
               return 0;
             }
             else
@@ -1251,11 +1727,18 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                   WDL_String news("Error removing");
                   news.Append(isRecv ? " local file: " : " remote file: ");
-                  news.Append(filename);
+                  news.Append(gs.Get());
+                  LogMessage(news.Get());
                   SendDlgItemMessage(hwndDlg,IDC_LIST1,LB_ADDSTRING,0,(LPARAM)news.Get());
                 }
                 else
+                {
                   m_copy_deletes++;
+                  WDL_String news("Removed");
+                  news.Append(isRecv ? " local file: " : " remote file: ");
+                  news.Append(gs.Get());
+                  LogMessage(news.Get());
+                }
               }
               else if (isRecv || isSend)
               {
@@ -1294,10 +1777,25 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
         case IDCANCEL:
           if (m_copy_done || MessageBox(hwndDlg,"Cancel synchronization?","Question",MB_YESNO)==IDYES)
-            EndDialog(hwndDlg,1);
+            PostMessage(g_dlg, WM_COPYDIALOGEND, 1, 0);
         break;
       }
     break;
+    case WM_SIZE:
+      if (g_systray)
+      {
+			  if (wParam == SIZE_MINIMIZED)
+			  {
+          g_intray = true;
+				  ShowWindow(hwndDlg,SW_HIDE);
+			  }
+			  else if (wParam == SIZE_RESTORED)
+			  {
+          g_intray = false;
+				  ShowWindow(hwndDlg,SW_SHOW);
+			  }
+      }
+    return 0;
   }
   return 0;
 }

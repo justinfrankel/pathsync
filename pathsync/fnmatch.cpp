@@ -66,8 +66,6 @@ fnmatch (pattern, string, flags)
       return -1;
     }
 
-  if ((flags & FNM_STARDOTSTAR) && *p == '*' && *(p+1) == '.' && *(p+2) == '*' && !*(p+3)) return 0;
-
   while ((c = *p++) != '\0')
     {
       switch (c)
