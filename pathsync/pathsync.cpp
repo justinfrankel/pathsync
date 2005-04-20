@@ -408,8 +408,8 @@ int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
   GetPrivateProfileString(sec,"include","",path,sizeof(path),fn);
   SetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,path);
 
-  g_throttle=GetPrivateProfileInt("config","throttle",0,fn);
-  g_throttlespd=GetPrivateProfileInt("config","throttlespd",1024,fn);
+  g_throttle=GetPrivateProfileInt(sec,"throttle",0,fn);
+  g_throttlespd=GetPrivateProfileInt(sec,"throttlespd",1024,fn);
 
   return GetPrivateProfileInt(sec,"pssversion",0,fn);
 }
@@ -449,8 +449,8 @@ void save_settings(HWND hwndDlg, char *sec, char *fn)
   WritePrivateProfileString(sec,"include",path,fn);
 
   wsprintf(path,"%d",g_throttlespd);
-  WritePrivateProfileString("config","throttlespd", path,fn);
-  WritePrivateProfileString("config","throttle", g_throttle?"1":"0",fn);
+  WritePrivateProfileString(sec,"throttlespd", path,fn);
+  WritePrivateProfileString(sec,"throttle", g_throttle?"1":"0",fn);
 
 }
 
