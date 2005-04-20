@@ -9,7 +9,7 @@
 ;General
 
 !define VER_MAJOR 0
-!define VER_MINOR 2
+!define VER_MINOR 3
 
 SetCompressor lzma
 
@@ -100,6 +100,8 @@ Section "PathSync Source Code"
   File pathsync.dsw
   File pathsync.dsp
   File pathsync.cpp
+  File fnmatch.cpp
+  File fnmatch.h
   File resource.h
   File res.rc
   File ps.nsi
@@ -138,6 +140,8 @@ Section "Uninstall"
   Delete $INSTDIR\Source\PathSync\pathsync.dsw
   Delete $INSTDIR\Source\PathSync\pathsync.dsp
   Delete $INSTDIR\Source\PathSync\pathsync.cpp
+  Delete $INSTDIR\Source\PathSync\fnmatch.cpp
+  Delete $INSTDIR\Source\PathSync\fnmatch.h
   Delete $INSTDIR\Source\PathSync\ps.nsi
   Delete $INSTDIR\Source\PathSync\resource.h
   Delete $INSTDIR\Source\PathSync\res.rc
