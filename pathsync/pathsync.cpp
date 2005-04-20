@@ -393,7 +393,7 @@ int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
   {
     CheckDlgButton(hwndDlg,IDC_LOG, 0);
   }
-  SetDlgItemText(hwndDlg,IDC_LOGPATH, path);
+  SetDlgItemText(hwndDlg,IDC_LOGPATH, path[0] == '!' ? path+1 : path);
 
   GetPrivateProfileString(sec,"include","",path,sizeof(path),fn);
   SetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,path);
