@@ -398,6 +398,9 @@ int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
   GetPrivateProfileString(sec,"include","",path,sizeof(path),fn);
   SetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,path);
 
+  g_throttle=GetPrivateProfileInt("config","throttle",0,fn);
+  g_throttlespd=GetPrivateProfileInt("config","throttlespd",1024,fn);
+
   return GetPrivateProfileInt(sec,"pssversion",0,fn);
 }
 
@@ -434,6 +437,11 @@ void save_settings(HWND hwndDlg, char *sec, char *fn)
   }
   GetDlgItemText(hwndDlg,IDC_INCLUDE_FILES,path,sizeof(path));
   WritePrivateProfileString(sec,"include",path,fn);
+
+  wsprintf(path,"%d",g_throttlespd);
+  WritePrivateProfileString("config","throttlespd", path,fn);
+  WritePrivateProfileString("config","throttle", g_throttle?"1":"0",fn);
+
 }
 
 
@@ -745,8 +753,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             char buf[2048];
             GetDlgItemText(hwndDlg,IDC_PATH1,buf,sizeof(buf));
+            while (buf[0] && buf[strlen(buf)-1] == '\\') buf[strlen(buf)-1]=0;
             m_curscanner_basepath[0].Set(buf);
             GetDlgItemText(hwndDlg,IDC_PATH2,buf,sizeof(buf));
+            while (buf[0] && buf[strlen(buf)-1] == '\\') buf[strlen(buf)-1]=0;
             m_curscanner_basepath[1].Set(buf);
 
             // just in case it didn't get cleared at the end of the last analysis, somehow
@@ -1660,8 +1670,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   {
     case WM_INITDIALOG:
       if (GetPrivateProfileInt("config","accopy",0,m_inifile)) CheckDlgButton(hwndDlg,IDC_CHECK1,BST_CHECKED);
-      if ((g_throttle=GetPrivateProfileInt("config","throttle",0,m_inifile))) CheckDlgButton(hwndDlg,IDC_CHECK2,BST_CHECKED);     
-      g_throttlespd=GetPrivateProfileInt("config","throttlespd",1024,m_inifile);
+      if (g_throttle) CheckDlgButton(hwndDlg,IDC_CHECK2,BST_CHECKED);     
     
       SetDlgItemInt(hwndDlg,IDC_EDIT1,g_throttlespd,FALSE);
       m_copy_starttime=GetTickCount();
@@ -1820,8 +1829,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           WritePrivateProfileString("config","accopy", IsDlgButtonChecked(hwndDlg,IDC_CHECK1)?"1":"0",m_inifile);
         break;
         case IDC_CHECK2:
-          WritePrivateProfileString("config","throttle", (g_throttle=!!IsDlgButtonChecked(hwndDlg,IDC_CHECK2))?"1":"0",m_inifile);
- 
+          g_throttle=!!IsDlgButtonChecked(hwndDlg,IDC_CHECK2);
           g_throttle_sttime=GetTickCount();     
           g_throttle_bytes=0;
         break;
@@ -1829,13 +1837,10 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           if (HIWORD(wParam) == EN_CHANGE)
           {
             BOOL t=0;
-            char buf[64];
             int a=GetDlgItemInt(hwndDlg,IDC_EDIT1,&t,FALSE);
             if (t)
             {
               g_throttlespd=a;
-              wsprintf(buf,"%d",g_throttlespd);
-              WritePrivateProfileString("config","throttlespd", buf,m_inifile);
               g_throttle_sttime=GetTickCount();
               g_throttle_bytes=0;
             }
