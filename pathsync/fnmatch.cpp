@@ -70,10 +70,10 @@ fnmatch (pattern, string, flags)
 	case '?':
 	  if (*n == '\0')
 	    return FNM_NOMATCH;
-	  else if ((flags & FNM_PATHNAME) && *n == '/')
+	  else if ((flags & FNM_PATHNAME) && *n == '\\')
 	    return FNM_NOMATCH;
 	  else if ((flags & FNM_PERIOD) && *n == '.' &&
-		   (n == string || ((flags & FNM_PATHNAME) && n[-1] == '/')))
+		   (n == string || ((flags & FNM_PATHNAME) && n[-1] == '\\')))
 	    return FNM_NOMATCH;
 	  break;
 

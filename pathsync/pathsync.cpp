@@ -41,7 +41,7 @@
 #include "../WDL/wingui/wndsize.h"
 #include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.3"
+#define PATHSYNC_VER "v0.31"
 
 HINSTANCE g_hInstance;
 
@@ -333,7 +333,7 @@ void parse_pattern_list(HWND hwndDlg, char *str, WDL_PtrList<WDL_String> *list)
   }
 }
 
-int test_file_pattern(char *file)
+int test_file_pattern(char *file, int is_dir)
 {
   int s=m_include_files.GetSize();
   if (!s) return 1;
@@ -343,6 +343,16 @@ int test_file_pattern(char *file)
     char *p=m_include_files.Get(i)->Get();
     int isnot=0;
     if (*p == '!') isnot++,p++;
+
+    if (is_dir) // we do not want to exclude anything by this list, rather just 
+                // detect things that might be valid. 
+    {
+      if (*p == '*' && !isnot) return 1; // detect *.bla wildcards
+
+      int l=strlen(file);
+      while (l>0 && file[l-1]=='\\') l--;
+      if (!strnicmp(p,file,l)) return 1; // if partial match
+    }
 
     if (fnmatch(p, file, 0) == 0) return !isnot;
   }
@@ -1018,13 +1028,14 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     relname.Set(m_curscanner_relpath[x].Get());
                     if (m_curscanner_relpath[x].Get()[0]) relname.Append("\\");
                     relname.Append(ptr);
-                    if (m_curscanner[x].GetCurrentIsDirectory()) relname.Append("\\");
+                    int isdir=m_curscanner[x].GetCurrentIsDirectory();
+                    if (isdir) relname.Append("\\");
 
-                    if (!test_file_pattern(relname.Get()))
+                    if (!test_file_pattern(relname.Get(),isdir))
                     {
                       // do nothing
                     }
-                    else if (m_curscanner[x].GetCurrentIsDirectory())
+                    else if (isdir)
                     {
                       WDL_String *s=new WDL_String(m_curscanner_relpath[x].Get());
                       if (m_curscanner_relpath[x].Get()[0]) s->Append("\\");

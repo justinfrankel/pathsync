@@ -9,7 +9,7 @@
 ;General
 
 !define VER_MAJOR 0
-!define VER_MINOR 3
+!define VER_MINOR 31
 
 SetCompressor lzma
 

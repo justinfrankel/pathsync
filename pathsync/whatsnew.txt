@@ -1,5 +1,8 @@
 PathSync version history:
 
+v0.31 (4/20/05):
++ fixed bug in filename matching
+
 v0.3 (4/20/05):
 + commandline option -systray (courtesy Francis Gastellu)
 + filename pattern matching options (courtesy Francis Gastellu)
