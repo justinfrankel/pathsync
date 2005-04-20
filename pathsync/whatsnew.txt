@@ -2,9 +2,11 @@ PathSync version history:
 
 v0.3 (4/20/05):
 + commandline option -systray (courtesy Francis Gastellu)
-+ include/exclude file pattern list, uses ';' as separator (courtesy Francis Gastellu)
++ filename pattern matching options (courtesy Francis Gastellu)
 + -autorun command line option (courtesy Alan Davies) 
-+ logging option (useful for -autorun or normal use)
++ logging option (useful for -autorun or normal use) (courtesy Alan Davies)
++ optional copying throttling (coming soon: throttling for file scanning)
+
 
 v0.2 (3/08/05):
 + support for PSS (pathsync settings) files 
@@ -20,11 +22,7 @@ v0.1 (8/20/04):
 
 
 
-
 TODO (feel free to send in patches to enable some of these, otherwise they
 will eventually get done anyway, maybe):
   + directory date support, remove directories that do not exist, etc
-  + bandwidth throttling
-  + support for auto analyze,sync,close for launching PSS files, for automating
-    the tasks
   + network support (have it run as client/server, using TCP or something)

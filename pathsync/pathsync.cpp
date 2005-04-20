@@ -97,6 +97,9 @@ bool g_intray = false;
 HWND g_copydlg = NULL;
 HWND g_dlg = NULL;
 int g_lasttraypercent = -1;
+int g_throttle,g_throttlespd=1024;
+DWORD g_throttle_sttime;
+__int64 g_throttle_bytes;
 
 const int endislist[]={IDC_STATS,IDC_PATH1,IDC_PATH2,IDC_BROWSE1,IDC_BROWSE2,IDC_IGNORE_SIZE,IDC_IGNORE_DATE,IDC_IGNORE_MISSLOCAL,IDC_IGNORE_MISSREMOTE,IDC_DEFBEHAVIOR,IDC_LOG,IDC_LOGPATH,IDC_LOGBROWSE, IDC_LOCAL_LABEL, IDC_REMOTE_LABEL, IDC_IGNORE_LABEL, IDC_INCLUDE_LABEL };
 
@@ -514,7 +517,19 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
           set_current_settings_file(hwndDlg,g_loadsettingsfile);
         }
-        else load_settings(hwndDlg,"config",m_inifile);
+        else 
+        {
+          if (g_loadsettingsfile[0])
+          {
+            if (g_autorun)
+            {
+              PostQuitMessage(1);
+            }
+            else
+              MessageBox(hwndDlg,"Error loading PSS file, loading last config","PathSync Warning",MB_OK);
+          }
+          load_settings(hwndDlg,"config",m_inifile);
+        }
         g_loadsettingsfile[0]=0;
  
         EnableOrDisableLoggingControls(hwndDlg);
@@ -1459,6 +1474,7 @@ class fileCopier
       {
         m_copy_bytestotalsofar+=r;
         m_filepos += r;
+        g_throttle_bytes+=r;
 
         DWORD or;
         if (!WriteFile(m_dstFile,buf,r,&or,NULL) || or != r)
@@ -1494,6 +1510,7 @@ class fileCopier
 
       if (r < sizeof(buf)) // eof!
       {
+        if (m_filesize.QuadPart < 16384) g_throttle_bytes+=16384;
         FILETIME ft;
         GetFileTime(m_srcFile,NULL,NULL,&ft);
         SetFileTime(m_dstFile,NULL,NULL,&ft);
@@ -1640,6 +1657,10 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
   {
     case WM_INITDIALOG:
       if (GetPrivateProfileInt("config","accopy",0,m_inifile)) CheckDlgButton(hwndDlg,IDC_CHECK1,BST_CHECKED);
+      if ((g_throttle=GetPrivateProfileInt("config","throttle",0,m_inifile))) CheckDlgButton(hwndDlg,IDC_CHECK2,BST_CHECKED);     
+      g_throttlespd=GetPrivateProfileInt("config","throttlespd",1024,m_inifile);
+    
+      SetDlgItemInt(hwndDlg,IDC_EDIT1,g_throttlespd,FALSE);
       m_copy_starttime=GetTickCount();
       m_next_statusupdate=0;
       m_copy_deletes=m_copy_files=0;
@@ -1650,6 +1671,10 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
       SendDlgItemMessage(hwndDlg,IDC_TOTALPROGRESS,PBM_SETPOS,0,0);
       SetTimer(hwndDlg,60,50,NULL);
+
+      g_throttle_sttime=GetTickCount();     
+      g_throttle_bytes=0;
+
     return 0;
     case WM_DESTROY:
       if (m_copy_curcopy)
@@ -1666,7 +1691,23 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         unsigned int now;
         while ((now=GetTickCount()) - start_t < 200)
         {
-          if (m_copy_curcopy && m_copy_curcopy->run(hwndDlg))
+          int docopy=1;
+          if (g_throttle)
+          {
+            DWORD now=GetTickCount();
+            if (now < g_throttle_sttime || now > g_throttle_sttime+30000)
+            {
+              g_throttle_sttime=now;
+              g_throttle_bytes=0;
+            }
+            now -= g_throttle_sttime;
+            if (!now) now=1;
+            int kbytes_sec=(int)(g_throttle_bytes/now);
+            if (kbytes_sec > g_throttlespd)
+              docopy=0;
+          }
+
+          if (docopy && m_copy_curcopy && m_copy_curcopy->run(hwndDlg))
           {
             // if copy finishes, reset 
             delete m_copy_curcopy;
@@ -1774,6 +1815,28 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       {
         case IDC_CHECK1:
           WritePrivateProfileString("config","accopy", IsDlgButtonChecked(hwndDlg,IDC_CHECK1)?"1":"0",m_inifile);
+        break;
+        case IDC_CHECK2:
+          WritePrivateProfileString("config","throttle", (g_throttle=!!IsDlgButtonChecked(hwndDlg,IDC_CHECK2))?"1":"0",m_inifile);
+ 
+          g_throttle_sttime=GetTickCount();     
+          g_throttle_bytes=0;
+        break;
+        case IDC_EDIT1:
+          if (HIWORD(wParam) == EN_CHANGE)
+          {
+            BOOL t=0;
+            char buf[64];
+            int a=GetDlgItemInt(hwndDlg,IDC_EDIT1,&t,FALSE);
+            if (t)
+            {
+              g_throttlespd=a;
+              wsprintf(buf,"%d",g_throttlespd);
+              WritePrivateProfileString("config","throttlespd", buf,m_inifile);
+              g_throttle_sttime=GetTickCount();
+              g_throttle_bytes=0;
+            }
+          }
         break;
         case IDCANCEL:
           if (m_copy_done || MessageBox(hwndDlg,"Cancel synchronization?","Question",MB_YESNO)==IDYES)

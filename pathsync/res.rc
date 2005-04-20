@@ -93,7 +93,11 @@ BEGIN
     CONTROL         "",IDC_FILEPOS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,
                     28,350,8
     CONTROL         "Close window when finished",IDC_CHECK1,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,223,168,105,10
+                    BS_AUTOCHECKBOX | WS_TABSTOP,223,169,105,10
+    CONTROL         "Throttle to:",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,7,169,50,10
+    EDITTEXT        IDC_EDIT1,58,168,30,12,ES_AUTOHSCROLL
+    LTEXT           "kilobytes/second",IDC_STATIC,91,170,55,8
 END
 
 

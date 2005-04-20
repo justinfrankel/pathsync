@@ -24,7 +24,6 @@
 #define IDC_FILEPROGRESS                1010
 #define IDC_STATS                       1010
 #define IDC_FILEPOS                     1011
-#define IDC_LOGBROWSE2                  1011
 #define IDC_MASKHELP                    1011
 #define IDC_CHECK1                      1012
 #define IDC_REMOTE_LABEL                1013
@@ -40,6 +39,8 @@
 #define IDC_LOCAL_LABEL                 1023
 #define IDC_IGNORE_LABEL                1024
 #define IDC_INCLUDE_LABEL               1025
+#define IDC_CHECK2                      1027
+#define IDC_EDIT1                       1028
 #define IDM_2TO1                        40001
 #define IDM_1TO2                        40002
 #define IDM_NOACTION                    40003
@@ -54,7 +55,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        109
 #define _APS_NEXT_COMMAND_VALUE         40008
-#define _APS_NEXT_CONTROL_VALUE         1027
+#define _APS_NEXT_CONTROL_VALUE         1029
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

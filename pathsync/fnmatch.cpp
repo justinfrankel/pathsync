@@ -16,9 +16,6 @@ License along with the GNU C Library; see the file COPYING.LIB.  If
 not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.  */
 
-/* Modified slightly by Francis Gastellu <lone@bluemars.org> for
-   "*.*" pattern support on Dos/Win systems */
-
 /* Modified slightly by Brian Berliner <berliner@sun.com> and
    Jim Blandy <jimb@cyclic.com> for CVS use */
 #ifdef HAVE_CONFIG_H
