@@ -2,6 +2,7 @@ PathSync version history:
 
 v0.31 (4/20/05):
 + fixed bug in filename matching
++ fixed throttling high CPU use
 
 v0.3 (4/20/05):
 + commandline option -systray (courtesy Francis Gastellu)

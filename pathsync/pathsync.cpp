@@ -1714,7 +1714,6 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         unsigned int now;
         while ((now=GetTickCount()) - start_t < 200)
         {
-          int docopy=1;
           if (g_throttle)
           {
             DWORD now=GetTickCount();
@@ -1727,10 +1726,10 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (!now) now=1;
             int kbytes_sec=(int)(g_throttle_bytes/now);
             if (kbytes_sec > g_throttlespd)
-              docopy=0;
+              break; // wait til next WM_TIMER
           }
 
-          if (docopy && m_copy_curcopy && m_copy_curcopy->run(hwndDlg))
+          if (m_copy_curcopy && m_copy_curcopy->run(hwndDlg))
           {
             // if copy finishes, reset 
             delete m_copy_curcopy;
