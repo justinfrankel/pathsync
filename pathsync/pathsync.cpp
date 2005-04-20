@@ -333,11 +333,14 @@ void parse_pattern_list(HWND hwndDlg, char *str, WDL_PtrList<WDL_String> *list)
   }
 }
 
-int test_file_pattern(char *file, WDL_PtrList<WDL_String> *list)
+int test_file_pattern(char *file)
 {
-  for (int i=0;i<list->GetSize();i++)
+  int s=m_include_files.GetSize();
+  if (!s) return 1;
+
+  for (int i=0;i<s;i++)
   {
-    char *p=list->Get(i)->Get();
+    char *p=m_include_files.Get(i)->Get();
     int isnot=0;
     if (*p == '!') isnot++,p++;
 
@@ -1007,7 +1010,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     relname.Append(ptr);
                     if (m_curscanner[x].GetCurrentIsDirectory()) relname.Append("\\");
 
-                    if (!test_file_pattern(relname.Get(), &m_include_files))
+                    if (!test_file_pattern(relname.Get()))
                     {
                       // do nothing
                     }
