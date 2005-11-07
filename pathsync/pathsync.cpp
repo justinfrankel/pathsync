@@ -41,7 +41,7 @@
 #include "../WDL/wingui/wndsize.h"
 #include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.31"
+#define PATHSYNC_VER "v0.32"
 
 HINSTANCE g_hInstance;
 
@@ -389,7 +389,7 @@ int load_settings(HWND hwndDlg, char *sec, char *fn) // return version
   SetDlgItemText(hwndDlg,IDC_PATH2,path);
   int ignflags=GetPrivateProfileInt(sec,"ignflags",0,fn);
   CheckDlgButton(hwndDlg,IDC_IGNORE_SIZE,(ignflags&1)?BST_CHECKED:BST_UNCHECKED);
-  CheckDlgButton(hwndDlg,IDC_IGNORE_DATE,(ignflags&2)?BST_CHECKED:BST_UNCHECKED);
+  CheckDlgButton(hwndDlg,IDC_IGNORE_DATE,(ignflags&16)?BST_INDETERMINATE : ((ignflags&2)?BST_CHECKED:BST_UNCHECKED));
   CheckDlgButton(hwndDlg,IDC_IGNORE_MISSLOCAL,(ignflags&4)?BST_CHECKED:BST_UNCHECKED);
   CheckDlgButton(hwndDlg,IDC_IGNORE_MISSREMOTE,(ignflags&8)?BST_CHECKED:BST_UNCHECKED);
   SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_SETCURSEL,(WPARAM)GetPrivateProfileInt(sec,"defbeh",0,fn),0);
@@ -426,7 +426,12 @@ void save_settings(HWND hwndDlg, char *sec, char *fn)
   WritePrivateProfileString(sec,"path2",path,fn);
   int ignflags=0;
   if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) ignflags |= 1;
-  if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) ignflags |= 2;
+  if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) 
+  {
+    if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE) == BST_INDETERMINATE) ignflags |= 16;
+    else ignflags |= 2;
+  }
+
   if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) ignflags |= 4;
   if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) ignflags |= 8;
   wsprintf(path,"%d",ignflags);
@@ -753,7 +758,11 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             g_ignflags=0;
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_SIZE)) g_ignflags |= 1;
-            if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) g_ignflags |= 2;
+            if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE)) 
+            {
+              if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_DATE) == BST_INDETERMINATE) g_ignflags |= 16;
+              else g_ignflags |= 2;
+            }
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSLOCAL)) g_ignflags |= 4;
             if (IsDlgButtonChecked(hwndDlg,IDC_IGNORE_MISSREMOTE)) g_ignflags |= 8;
             g_defbeh=SendDlgItemMessage(hwndDlg,IDC_DEFBEHAVIOR,CB_GETCURSEL,0,0);
@@ -1135,7 +1144,19 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   ULARGE_INTEGER ftb=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
                   __int64 datediff = fta.QuadPart - ftb.QuadPart;
                   if (datediff < 0) datediff=-datediff;
-                  int dateMatch = datediff < 10000000 || (g_ignflags & 2); // if difference is less than 1s, than they are equal
+                  int dateMatch = datediff < 10000000 || (g_ignflags & 2); // if difference is less than 1s, they are equal
+
+                  if (!dateMatch && (g_ignflags & 16))
+                  {
+                    int y;
+                    for (y = -2; y <= 2 && !dateMatch; y ++)
+                    {
+                      __int64 l = datediff + y*36000000000i64;
+                      if (l < 0)l=-l;
+                      if (l < 10000000) dateMatch=1;
+                    }
+                  }
+
                   int sizeMatch = ((*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart) || (g_ignflags & 1);
                   if (!sizeMatch || !dateMatch)
                   {

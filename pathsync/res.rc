@@ -43,7 +43,7 @@ BEGIN
     LTEXT           "Ignore:",IDC_IGNORE_LABEL,8,26,23,8
     CONTROL         "File sizes",IDC_IGNORE_SIZE,"Button",BS_AUTOCHECKBOX | 
                     WS_TABSTOP,37,26,41,10
-    CONTROL         "File dates",IDC_IGNORE_DATE,"Button",BS_AUTOCHECKBOX | 
+    CONTROL         "File dates",IDC_IGNORE_DATE,"Button",BS_AUTO3STATE | 
                     WS_TABSTOP,84,26,44,10
     CONTROL         "Missing local files",IDC_IGNORE_MISSLOCAL,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,132,26,70,10
