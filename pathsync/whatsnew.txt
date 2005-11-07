@@ -1,5 +1,9 @@
 PathSync version history:
 
+v0.32 (11/07/05):
++ added greyed "ignore file date" checkbox, which ignores differences
+  of exactly 1h and 2h, for daylight savings time nonsense.
+
 v0.31 (4/20/05):
 + fixed bug in filename matching
 + fixed throttling high CPU use

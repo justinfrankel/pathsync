@@ -1149,11 +1149,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   if (!dateMatch && (g_ignflags & 16))
                   {
                     int y;
-                    for (y = -2; y <= 2 && !dateMatch; y ++)
+                    for (y = 1; y <= 2 && !dateMatch; y ++) // if 1 or 2 hours off, precisely, then DST related nonsense
                     {
-                      __int64 l = datediff + y*36000000000i64;
-                      if (l < 0)l=-l;
-                      if (l < 10000000) dateMatch=1;
+                      __int64 l = datediff - y*36000000000i64;
+                      dateMatch = l < 10000000 && l > -10000000;
                     }
                   }
 
