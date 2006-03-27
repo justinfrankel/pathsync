@@ -351,7 +351,7 @@ int test_file_pattern(char *file, int is_dir)
 
       int l=strlen(file);
       while (l>0 && file[l-1]=='\\') l--;
-      if (!strnicmp(p,file,l)) return 1; // if partial match
+      if (!strnicmp(p,file,l)) return !isnot; // if partial match
     }
 
     if (fnmatch(p, file, 0) == 0) return !isnot;

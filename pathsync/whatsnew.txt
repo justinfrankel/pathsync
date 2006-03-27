@@ -1,5 +1,8 @@
 PathSync version history:
 
+v0.33 (3/27/06): 
++ fixed a bug when using !dirname\ in expression list (thanks dave biderman)
+
 v0.32 (11/07/05):
 + added greyed "ignore file date" checkbox, which ignores differences
   of exactly 1h and 2h, for daylight savings time nonsense.
