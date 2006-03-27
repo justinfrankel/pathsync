@@ -41,7 +41,7 @@
 #include "../WDL/wingui/wndsize.h"
 #include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.32"
+#define PATHSYNC_VER "v0.33"
 
 HINSTANCE g_hInstance;
 
