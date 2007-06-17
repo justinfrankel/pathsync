@@ -35,7 +35,7 @@
 #include "resource.h"
 
 #include "../WDL/ptrlist.h"
-#include "../WDL/string.h"
+#include "../WDL/wdlstring.h"
 #include "../WDL/dirscan.h"
 
 #include "../WDL/wingui/wndsize.h"
