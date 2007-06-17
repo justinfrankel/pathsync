@@ -110,7 +110,7 @@ Section "PathSync Source Code"
   File ..\WDL\dirscan.h
   File ..\WDL\ptrlist.h
   File ..\WDL\heapbuf.h
-  File ..\WDL\string.h
+  File ..\WDL\wdlstring.h
   SetOutPath $INSTDIR\Source\WDL\WinGUI
   File ..\WDL\wingui\wndsize.h
   File ..\WDL\wingui\wndsize.cpp 
