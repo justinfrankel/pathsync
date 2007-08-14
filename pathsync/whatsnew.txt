@@ -1,39 +1,52 @@
 PathSync version history:
 
+v0.34 (8/14/07):
+  + Brennan Underwood's 0.33b updates:
+    + made file date comparer consider FAT32 no-modification-date to be equal to NTFS no-modification-date
+    + made status bar only show directory names during scan (instead of files), much faster!
+    + reworked GUI for sanity and symmetry
+    + made icon vertically symmetric
+    + reordered item context menu to put "Local->Remote" option first
+  + Alan Davies 0.33c updates:   
+    + Added folder sync.
+    + Descriptive text for actions (Create/Delete).
+    + Untabified whole file, cleaned up tab order of resources.
+    + Fixed bug: 'Analyze' button stayed as 'stop' when path text invalid.
+    + Fixed bug: Logging edit + button correctly disabled after Analyze.
+    + Added 'Diff' and 'Open' options to context menu.
+
+
 v0.33 (3/27/06): 
-+ fixed a bug when using !dirname\ in expression list (thanks dave biderman)
+  + fixed a bug when using !dirname\ in expression list (thanks dave biderman)
 
 v0.32 (11/07/05):
-+ added greyed "ignore file date" checkbox, which ignores differences
-  of exactly 1h and 2h, for daylight savings time nonsense.
+  + added greyed "ignore file date" checkbox, which ignores differences
+    of exactly 1h and 2h, for daylight savings time nonsense.
 
 v0.31 (4/20/05):
-+ fixed bug in filename matching
-+ fixed throttling high CPU use
+  + fixed bug in filename matching
+  + fixed throttling high CPU use
 
 v0.3 (4/20/05):
-+ commandline option -systray (courtesy Francis Gastellu)
-+ filename pattern matching options (courtesy Francis Gastellu)
-+ -autorun command line option (courtesy Alan Davies) 
-+ logging option (useful for -autorun or normal use) (courtesy Alan Davies)
-+ optional copying throttling (coming soon: throttling for file scanning)
-
+  + commandline option -systray (courtesy Francis Gastellu)
+  + filename pattern matching options (courtesy Francis Gastellu)
+  + -autorun command line option (courtesy Alan Davies) 
+  + logging option (useful for -autorun or normal use) (courtesy Alan Davies)
+  + optional copying throttling (coming soon: throttling for file scanning)
 
 v0.2 (3/08/05):
-+ support for PSS (pathsync settings) files 
-  + menu items to load/save
-  + drag&drop PSS files
-  + shell integration (open your PSS in explorer, or run pathsync -loadpss <file>)
-+ option for ignoring dates/sizes/missing files
-+ option for default sync actions
-+ installer
+  + support for PSS (pathsync settings) files 
+    + menu items to load/save
+    + drag&drop PSS files
+    + shell integration (open your PSS in explorer, or run pathsync -loadpss <file>)
+  + option for ignoring dates/sizes/missing files
+  + option for default sync actions
+  + installer
 
 v0.1 (8/20/04):
-+ first release
-
+  + first release
 
 
 TODO (feel free to send in patches to enable some of these, otherwise they
 will eventually get done anyway, maybe):
-  + directory date support, remove directories that do not exist, etc
   + network support (have it run as client/server, using TCP or something)

@@ -26,47 +26,55 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // Dialog
 //
 
-IDD_DIALOG1 DIALOGEX 0, 0, 464, 318
-STYLE DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | 
-    WS_THICKFRAME
+IDD_DIALOG1 DIALOGEX 0, 0, 464, 322
+STYLE DS_CENTER | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU | WS_THICKFRAME
 EXSTYLE WS_EX_ACCEPTFILES
 MENU IDR_MENU2
 FONT 8, "MS Sans Serif"
 BEGIN
-    PUSHBUTTON      "Analyze",IDC_ANALYZE,409,7,48,12
-    LTEXT           "Local:",IDC_LOCAL_LABEL,7,9,20,8
-    EDITTEXT        IDC_PATH1,37,7,121,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_BROWSE1,161,7,33,12
-    LTEXT           "Remote:",IDC_REMOTE_LABEL,206,9,28,8
-    EDITTEXT        IDC_PATH2,236,7,121,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_BROWSE2,359,7,33,12
-    LTEXT           "Ignore:",IDC_IGNORE_LABEL,8,26,23,8
-    CONTROL         "File sizes",IDC_IGNORE_SIZE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,37,26,41,10
-    CONTROL         "File dates",IDC_IGNORE_DATE,"Button",BS_AUTO3STATE | 
-                    WS_TABSTOP,84,26,44,10
-    CONTROL         "Missing local files",IDC_IGNORE_MISSLOCAL,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,132,26,70,10
-    CONTROL         "Missing remote files",IDC_IGNORE_MISSREMOTE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,204,26,77,10
-    CONTROL         "Log:",IDC_LOG,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,286,
-                    26,27,10
-    EDITTEXT        IDC_LOGPATH,315,24,106,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Browse",IDC_LOGBROWSE,423,24,33,12
-    LTEXT           "Filename mask:",IDC_INCLUDE_LABEL,7,42,50,8
-    EDITTEXT        IDC_INCLUDE_FILES,61,40,360,12,ES_AUTOHSCROLL
-    PUSHBUTTON      "Help",IDC_MASKHELP,423,40,33,12
+    GROUPBOX        "Synchronize paths",IDC_SYNCHROPATHS,7,1,450,65
+    LTEXT           "Local:",IDC_LOCAL_LABEL,14,12,20,12,SS_CENTERIMAGE
+    EDITTEXT        IDC_PATH1,38,12,147,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...",IDC_BROWSE1,189,12,33,12
+    LTEXT           "Remote:",IDC_REMOTE_LABEL,233,12,28,12,SS_CENTERIMAGE
+    EDITTEXT        IDC_PATH2,264,12,147,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...",IDC_BROWSE2,416,12,33,12
     LTEXT           "Default synchronization action (requires re-analyze):",
-                    IDC_STATIC,8,58,162,8
-    COMBOBOX        IDC_DEFBEHAVIOR,172,56,286,181,CBS_DROPDOWNLIST | 
+                    IDC_DEFACTIONLABEL,14,30,162,12,SS_CENTERIMAGE
+    COMBOBOX        IDC_DEFBEHAVIOR,181,30,206,181,CBS_DROPDOWNLIST | 
                     WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Sync folders",IDC_SYNC_FOLDERS,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,394,32,55,10
+    LTEXT           "Filename mask:",IDC_INCLUDE_LABEL,14,48,50,12,
+                    SS_CENTERIMAGE
+    EDITTEXT        IDC_INCLUDE_FILES,68,48,363,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "?",IDC_MASKHELP,436,48,13,12
+    GROUPBOX        "Ignore",IDC_STATIC,7,68,170,40
+    CONTROL         "File sizes",IDC_IGNORE_SIZE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,14,80,41,10
+    CONTROL         "Missing local files",IDC_IGNORE_MISSLOCAL,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,88,80,70,10
+    CONTROL         "File dates",IDC_IGNORE_DATE,"Button",BS_AUTO3STATE | 
+                    WS_TABSTOP,14,92,44,10
+    CONTROL         "Missing remote files",IDC_IGNORE_MISSREMOTE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,88,92,77,10
+    GROUPBOX        "Logging",IDC_LOGGING,184,68,273,40
+    CONTROL         "Enable logging",IDC_LOG,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,190,80,95,10
+    LTEXT           "Log filename:",IDC_LOGFILENAMELABEL,190,92,43,12,
+                    SS_CENTERIMAGE
+    EDITTEXT        IDC_LOGPATH,236,92,175,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...",IDC_LOGBROWSE,416,92,33,12
     CONTROL         "Status: stopped",IDC_STATUS,"Static",SS_LEFTNOWORDWRAP | 
-                    WS_GROUP,7,72,450,8
+                    SS_NOPREFIX | SS_CENTERIMAGE | WS_GROUP,7,114,393,12,
+                    WS_EX_STATICEDGE
+    DEFPUSHBUTTON   "Analyze!",IDC_ANALYZE,406,112,51,17,0,WS_EX_STATICEDGE
     CONTROL         "List1",IDC_LIST1,"SysListView32",LVS_REPORT | 
-                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,84,450,208
+                    LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,7,134,450,158
     CONTROL         "Stats...",IDC_STATS,"Static",SS_LEFTNOWORDWRAP | 
-                    WS_GROUP,7,298,394,8
-    PUSHBUTTON      "Go!",IDC_GO,407,297,50,14,WS_DISABLED
+                    SS_NOPREFIX | SS_CENTERIMAGE | WS_GROUP,7,299,383,14
+    PUSHBUTTON      "&Synchronize!",IDC_GO,406,298,51,17,WS_DISABLED
 END
 
 IDD_DIALOG2 DIALOG DISCARDABLE  0, 0, 364, 188
@@ -74,30 +82,30 @@ STYLE DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PathSync - Synchronization"
 FONT 8, "MS Sans Serif"
 BEGIN
-    PUSHBUTTON      "Cancel",IDCANCEL,159,167,50,14
-    CONTROL         "",IDC_SRC,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,39,6,
-                    318,8
-    LISTBOX         IDC_LIST1,7,98,350,63,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
-                    WS_HSCROLL | WS_TABSTOP
-    LTEXT           "Error log:",IDC_STATIC,7,87,29,8
-    CONTROL         "",IDC_DEST,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,39,16,
-                    318,8
     LTEXT           "Source:",IDC_STATIC,7,6,26,8
+    CONTROL         "",IDC_SRC,"Static",SS_LEFTNOWORDWRAP | SS_NOPREFIX | 
+                    WS_GROUP,39,6,318,8
     LTEXT           "Dest:",IDC_STATIC,7,16,18,8
-    CONTROL         "",IDC_TOTALPOS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,
-                    52,350,20
-    CONTROL         "Progress1",IDC_TOTALPROGRESS,"msctls_progress32",
-                    WS_BORDER,7,74,350,10
+    CONTROL         "",IDC_DEST,"Static",SS_LEFTNOWORDWRAP | SS_NOPREFIX | 
+                    WS_GROUP,39,16,318,8
+    CONTROL         "",IDC_FILEPOS,"Static",SS_LEFTNOWORDWRAP | SS_NOPREFIX | 
+                    WS_GROUP,7,29,350,8
     CONTROL         "Progress1",IDC_FILEPROGRESS,"msctls_progress32",
                     WS_BORDER,7,39,350,10
-    CONTROL         "",IDC_FILEPOS,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,7,
-                    28,350,8
+    CONTROL         "",IDC_TOTALPOS,"Static",SS_LEFTNOWORDWRAP | SS_NOPREFIX | 
+                    WS_GROUP,7,56,350,16
+    CONTROL         "Progress1",IDC_TOTALPROGRESS,"msctls_progress32",
+                    WS_BORDER,7,73,350,10
+    LTEXT           "Error log:",IDC_STATIC,7,89,29,8
+    LISTBOX         IDC_LIST1,7,98,350,63,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | 
+                    WS_HSCROLL | WS_TABSTOP
+    CONTROL         "Throttle to",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | 
+                    BS_VCENTER | WS_TABSTOP,7,167,50,14
+    EDITTEXT        IDC_EDIT1,57,167,30,14,ES_AUTOHSCROLL
+    LTEXT           "kB/sec",IDC_STATIC,90,167,28,14,SS_CENTERIMAGE
     CONTROL         "Close window when finished",IDC_CHECK1,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,223,169,105,10
-    CONTROL         "Throttle to:",IDC_CHECK2,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,7,169,50,10
-    EDITTEXT        IDC_EDIT1,58,168,30,12,ES_AUTOHSCROLL
-    LTEXT           "kilobytes/second",IDC_STATIC,91,170,55,8
+                    BS_AUTOCHECKBOX | WS_TABSTOP,137,167,105,14
+    PUSHBUTTON      "Cancel",IDCANCEL,302,167,55,14
 END
 
 
@@ -114,7 +122,7 @@ BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 457
         TOPMARGIN, 7
-        BOTTOMMARGIN, 311
+        BOTTOMMARGIN, 315
     END
 
     IDD_DIALOG2, DIALOG
@@ -163,9 +171,13 @@ IDR_MENU1 MENU DISCARDABLE
 BEGIN
     POPUP "ContextMenu"
     BEGIN
-        MENUITEM "Remote->Local",               IDM_2TO1
         MENUITEM "Local->Remote",               IDM_1TO2
+        MENUITEM "Remote->Local",               IDM_2TO1
         MENUITEM "No Action",                   IDM_NOACTION
+        MENUITEM SEPARATOR
+        MENUITEM "Diff...",                     IDM_DIFF
+        MENUITEM "Open Local...",               IDM_OPENLOCAL
+        MENUITEM "Open Remote...",              IDM_OPENREMOTE
     END
 END
 
@@ -175,6 +187,8 @@ BEGIN
     BEGIN
         MENUITEM "&Load SyncSettings...",       IDM_LOAD_SYNC_SETTINGS
         MENUITEM "&Save SyncSettings...",       IDM_SAVE_SYNC_SETTINGS
+        MENUITEM SEPARATOR
+        MENUITEM "&Choose Diff Tool...",        IDC_SETCOMPARE
         MENUITEM SEPARATOR
         MENUITEM "&Quit",                       IDM_EXIT
     END
@@ -194,6 +208,58 @@ END
 // remains consistent on all systems.
 IDI_ICON1               ICON    DISCARDABLE     "icon1.ico"
 #endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (Canada) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENC)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_CAN
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIFFTOOL DIALOG DISCARDABLE  200, 200, 315, 94
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Choose a diff tool to use"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "Diff application:",IDC_STATIC,7,7,301,8
+    EDITTEXT        IDC_DIFF,7,20,261,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "Browse...",IDC_BROWSE,275,20,33,12
+    LTEXT           "Diff parameters (use %1 and %2 for local and remote files):",
+                    IDC_STATIC,7,39,301,8
+    EDITTEXT        IDC_DIFFPARAMS,7,52,261,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,99,73,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,155,73,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_DIFFTOOL, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 308
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 87
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (Canada) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
