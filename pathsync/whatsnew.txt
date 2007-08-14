@@ -14,7 +14,7 @@ v0.34 (8/14/07):
     + Fixed bug: 'Analyze' button stayed as 'stop' when path text invalid.
     + Fixed bug: Logging edit + button correctly disabled after Analyze.
     + Added 'Diff' and 'Open' options to context menu.
-
+  + Synchronization window is now resizeable
 
 v0.33 (3/27/06): 
   + fixed a bug when using !dirname\ in expression list (thanks dave biderman)
@@ -45,8 +45,3 @@ v0.2 (3/08/05):
 
 v0.1 (8/20/04):
   + first release
-
-
-TODO (feel free to send in patches to enable some of these, otherwise they
-will eventually get done anyway, maybe):
-  + network support (have it run as client/server, using TCP or something)

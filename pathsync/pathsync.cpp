@@ -6,17 +6,7 @@
       Alan Davies (alan@goatpunch.com)
       Francis Gastellu
       Brennan Underwood
-       
-       v0.33b: Brennan Underwood (Feb 2007, changes marked w/ BU, also UI changes)
-       
-       v0.33c: August 2007, Alan Davies , major changes marked AD.
-            Added folder sync.
-            Descriptive text for actions (Create/Delete).
-            Untabified whole file, cleaned up tab order of resources.
-            Fixed bug: 'Analyze' button stayed as 'stop' when path text invalid.
-            Fixed bug: Logging edit + button correctly disabled after Analyze.
-            Added 'Diff' and 'Open' options to context menu.
-    
+           
     And now using filename matching from the GNU C library!
 
     PathSync is free software; you can redistribute it and/or modify
@@ -52,7 +42,7 @@
 #include "../WDL/wingui/wndsize.h"
 #include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.33c"
+#define PATHSYNC_VER "v0.34"
 
 HINSTANCE g_hInstance;
 
@@ -1794,7 +1784,7 @@ class fileCopier
 
       SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
       SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETPOS,0,0);
-      SetDlgItemText(hwndParent,IDC_FILEPOS,"Initializing...");
+      SetDlgItemText(hwndParent,IDC_FILEPOS,"Copying...");
 
       return 0;
     }
@@ -2018,9 +2008,26 @@ void LogEndSyncMessage()
 
 BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+  static WDL_WndSizer resizer;
   switch (uMsg)
   {
     case WM_INITDIALOG:
+
+      resizer.init(hwndDlg);
+      resizer.init_item(IDC_SRC,0,0,1,0);
+      resizer.init_item(IDC_DEST,0,0,1,0);
+      resizer.init_item(IDC_FILEPOS,0,0,1,0);
+      resizer.init_item(IDC_FILEPROGRESS,0,0,1,0);
+      resizer.init_item(IDC_TOTALPOS,0,0,1,0);
+      resizer.init_item(IDC_TOTALPROGRESS,0,0,1,0);
+      
+      resizer.init_item(IDC_LIST1,0,0,1,1);
+      resizer.init_item(IDC_CHECK2,0,1,0,1);
+      resizer.init_item(IDC_EDIT1,0,1,0,1);
+      resizer.init_item(IDC_THROTTLELBL,0,1,0,1);
+      resizer.init_item(IDC_CHECK1,0,1,0,1);
+      resizer.init_item(IDCANCEL,1,1,1,1);
+
       if (GetPrivateProfileInt("config","accopy",0,m_inifile)) CheckDlgButton(hwndDlg,IDC_CHECK1,BST_CHECKED);
       if (g_throttle) CheckDlgButton(hwndDlg,IDC_CHECK2,BST_CHECKED);     
     
@@ -2252,6 +2259,14 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
       }
     break;
+    case WM_GETMINMAXINFO:
+      {
+        LPMINMAXINFO p=(LPMINMAXINFO)lParam;
+        p->ptMinTrackSize.x = 430;
+        p->ptMinTrackSize.y = 258;
+      }
+    return 0;
+
     case WM_SIZE:
       if (g_systray)
       {
@@ -2264,6 +2279,12 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
           g_intray = false;
           ShowWindow(hwndDlg,SW_SHOW);
+        }
+      }
+      else
+      {
+        if (wParam != SIZE_MINIMIZED) {
+          resizer.onResize();
         }
       }
     return 0;

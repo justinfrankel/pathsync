@@ -50,6 +50,7 @@
 #define IDC_BROWSE                      1035
 #define IDC_DIFF                        1036
 #define IDC_DIFFPARAMS                  1037
+#define IDC_THROTTLELBL                 1037
 #define IDM_2TO1                        40001
 #define IDM_1TO2                        40002
 #define IDM_NOACTION                    40003
@@ -68,7 +69,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        110
 #define _APS_NEXT_COMMAND_VALUE         40012
-#define _APS_NEXT_CONTROL_VALUE         1037
+#define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
