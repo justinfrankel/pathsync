@@ -799,7 +799,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
           }
         break;
         case IDM_ABOUT:
-          MessageBox(hwndDlg,"PathSync " PATHSYNC_VER "\r\nCopyright (C) 2004-2005, Cockos Inc.\r\n"
+          MessageBox(hwndDlg,"PathSync " PATHSYNC_VER "\r\nCopyright (C) 2004-2007, Cockos Incorporated and others\r\n"
             "For updates visit http://www.cockos.com/pathsync/\r\n"
             "\r\n"
                     "PathSync is free software; you can redistribute it and/or modify\r\n"
