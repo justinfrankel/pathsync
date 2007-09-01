@@ -42,7 +42,7 @@
 #include "../WDL/wingui/wndsize.h"
 #include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.34"
+#define PATHSYNC_VER "v0.35"
 
 HINSTANCE g_hInstance;
 
@@ -415,7 +415,7 @@ int test_file_pattern(char *file, int is_dir)
 
       int l=strlen(file);
       while (l>0 && file[l-1]=='\\') l--;
-      if (!strnicmp(p,file,l)) return !isnot; // if partial match
+      if (!strnicmp(p,file,l) && (!p[l] || !strcmp(p+l,"\\") || !strcmp(p+l,"\\*"))) return !isnot; // if match of directory
     }
 
     if (fnmatch(p, file, 0) == 0) return !isnot;

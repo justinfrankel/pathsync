@@ -1,4 +1,6 @@
 PathSync version history:
+v0.35 (9/1/07):
+  + fixed a bug in filename masking for subdirectories (doing !dir1\dir2\*;dir1\ didn't work properly)
 
 v0.34 (8/14/07):
   + Brennan Underwood's 0.33b updates:
