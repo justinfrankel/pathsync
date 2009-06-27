@@ -47,6 +47,12 @@
 
 #include "../WDL/win32_utf8.h"
 
+#ifdef _WIN32
+#define PREF_DIRSTR "\\"
+#else
+#define PREF_DIRSTR "/"
+#endif
+
 
 HINSTANCE g_hInstance;
 
@@ -142,7 +148,9 @@ const int endislist[]={IDC_STATS,IDC_PATH1,IDC_PATH2,IDC_BROWSE1,IDC_BROWSE2,IDC
 
 bool isDirectory(const char * filename)
 {
-  return filename && filename[0] && filename[strlen(filename)-1] == '\\';
+  if (!filename || !filename[0]) return false;
+  char c = filename[strlen(filename)-1];
+  return c == '\\' || c == '/';
 }
 
 int filenameCompareFunction(dirItem **a, dirItem **b)
@@ -417,8 +425,9 @@ int test_file_pattern(char *file, int is_dir)
       if (*p == '*' && !isnot) return 1; // detect *.bla wildcards
 
       int l=strlen(file);
-      while (l>0 && file[l-1]=='\\') l--;
-      if (!strnicmp(p,file,l) && (!p[l] || !strcmp(p+l,"\\") || !strcmp(p+l,"\\*"))) return !isnot; // if match of directory
+      while (l>0 && (file[l-1]=='\\'||file[l-1]=='/')) l--;
+      if (!strnicmp(p,file,l) && (!p[l] || !strcmp(p+l,"\\") || !strcmp(p+l,"\\*")
+            || !strcmp(p+l,"/") || !strcmp(p+l,"/*"))) return !isnot; // if match of directory
     }
 
     if (fnmatch(p, file, 0) == 0) return !isnot;
@@ -878,10 +887,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             char buf[2048];
             GetDlgItemText(hwndDlg,IDC_PATH1,buf,sizeof(buf));
-            while (buf[0] && buf[strlen(buf)-1] == '\\') buf[strlen(buf)-1]=0;
+            while (buf[0] && (buf[strlen(buf)-1] == '\\'||buf[strlen(buf)-1] == '/')) buf[strlen(buf)-1]=0;
             m_curscanner_basepath[0].Set(buf);
             GetDlgItemText(hwndDlg,IDC_PATH2,buf,sizeof(buf));
-            while (buf[0] && buf[strlen(buf)-1] == '\\') buf[strlen(buf)-1]=0;
+            while (buf[0] && (buf[strlen(buf)-1] == '\\'||buf[strlen(buf)-1] == '/')) buf[strlen(buf)-1]=0;
             m_curscanner_basepath[1].Set(buf);
 
             // just in case it didn't get cleared at the end of the last analysis, somehow
@@ -1171,7 +1180,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   {
                     strncat(param1, params, p1 - params);
                     strcat(param1, m_curscanner_basepath[0].Get());
-                    strcat(param1, "\\");
+                    strcat(param1, PREF_DIRSTR);
                     strcat(param1, buf);
                     strcat(param1, p1+2);
                   }
@@ -1187,7 +1196,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   {
                     strncat(param2, param1, p2 - param1);
                     strcat(param2, m_curscanner_basepath[1].Get());
-                    strcat(param2, "\\");
+                    strcat(param2, PREF_DIRSTR);
                     strcat(param2, buf);
                     strcat(param2, p2+2);
                   }
@@ -1214,7 +1223,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                   WDL_String gs;
                   gs.Set(m_curscanner_basepath[0].Get());
-                  gs.Append("\\");
+                  gs.Append(PREF_DIRSTR);
                   gs.Append(buf);
 
                   SHELLEXECUTEINFO sei = { sizeof(sei) };
@@ -1234,7 +1243,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                   WDL_String gs;
                   gs.Set(m_curscanner_basepath[1].Get());
-                  gs.Append("\\");
+                  gs.Append(PREF_DIRSTR);
                   gs.Append(buf);
 
                   SHELLEXECUTEINFO sei = { sizeof(sei) };
@@ -1298,10 +1307,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                   {
                     WDL_String relname;
                     relname.Set(m_curscanner_relpath[x].Get());
-                    if (m_curscanner_relpath[x].Get()[0]) relname.Append("\\");
+                    if (m_curscanner_relpath[x].Get()[0]) relname.Append(PREF_DIRSTR);
                     relname.Append(ptr);
                     int isdir=m_curscanner[x].GetCurrentIsDirectory();
-                    if (isdir) relname.Append("\\");
+                    if (isdir) relname.Append(PREF_DIRSTR);
 
                     if (!test_file_pattern(relname.Get(),isdir))
                     {
@@ -1310,7 +1319,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     else if (isdir)
                     {
                       WDL_String *s=new WDL_String(m_curscanner_relpath[x].Get());
-                      if (m_curscanner_relpath[x].Get()[0]) s->Append("\\");
+                      if (m_curscanner_relpath[x].Get()[0]) s->Append(PREF_DIRSTR);
                       s->Append(ptr);
                       m_dirscanlist[x].Add(s);
 
@@ -1371,7 +1380,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                       delete str;
 
                       WDL_String s(m_curscanner_basepath[x].Get());
-                      s.Append("\\");
+                      s.Append(PREF_DIRSTR);
                       s.Append(m_curscanner_relpath[x].Get());
                       if (!m_curscanner[x].First(s.Get())) success++;
                     }
@@ -1620,6 +1629,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 char * skip_root(char *path)
 {
+#ifdef _WIN32
   char *p = (path+1);
   char *p2 = (p+1);
 
@@ -1644,8 +1654,11 @@ char * skip_root(char *path)
 
     return p2;
   }
-  else
-    return NULL;
+#else
+  if (*path == '/') return path+1;
+#endif
+
+  return NULL; // no root path found?!
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nShowCmd)
@@ -1822,7 +1835,7 @@ class fileCopier
         p = skip_root(tmp.Get());
         if (p) for (;;)
         {
-          while (*p != '\\' && *p) p=(p+1);
+          while (*p && *p != '\\' && *p != '/') p++;
           if (!*p) break;
 
           char c=*p;
@@ -2163,7 +2176,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 SetDlgItemText(hwndDlg,IDC_SRC,"<delete>");
                 WDL_String gs;
                 gs.Set(m_curscanner_basepath[!isRecv].Get());
-                gs.Append("\\");
+                gs.Append(PREF_DIRSTR);
                 gs.Append(filename);
                 SetDlgItemText(hwndDlg,IDC_DEST,gs.Get());
 
@@ -2211,13 +2224,13 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
               {
                 WDL_String gs;
                 gs.Set(m_curscanner_basepath[!!isRecv].Get());
-                gs.Append("\\");
+                gs.Append(PREF_DIRSTR);
                 gs.Append(filename);
                 SetDlgItemText(hwndDlg,IDC_SRC,gs.Get());
 
                 WDL_String outgs;
                 outgs.Set(m_curscanner_basepath[!isRecv].Get());
-                outgs.Append("\\");
+                outgs.Append(PREF_DIRSTR);
                 outgs.Append(filename);
                 SetDlgItemText(hwndDlg,IDC_DEST,outgs.Get());
 
