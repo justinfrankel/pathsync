@@ -25,7 +25,7 @@ CFG=pathsync - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 MTL=midl.exe
 RSC=rc.exe
 
@@ -51,7 +51,7 @@ RSC=rc.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /machine:I386
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib comctl32.lib /nologo /subsystem:windows /machine:I386 /opt:nowin98
 # SUBTRACT LINK32 /pdb:none
@@ -78,7 +78,7 @@ LINK32=link.exe
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept
 # ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib comctl32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept
 
@@ -105,6 +105,10 @@ SOURCE=.\pathsync.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\WDL\win32_utf8.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\WDL\wingui\wndsize.cpp
 # End Source File
 # Begin Source File
@@ -121,6 +125,14 @@ SOURCE=..\WDL\dirscan.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\WDL\fileread.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\WDL\filewrite.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\WDL\heapbuf.h
 # End Source File
 # Begin Source File
@@ -130,6 +142,14 @@ SOURCE=..\WDL\ptrlist.h
 # Begin Source File
 
 SOURCE=..\WDL\wdlstring.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\WDL\wdltypes.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\WDL\win32_utf8.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

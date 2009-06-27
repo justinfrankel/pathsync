@@ -1,4 +1,10 @@
 PathSync version history:
+
+v0.36 (6/27/09):
+  + Work to prepare for OS X support
+  + Uses more of WDL for file read/write
+  + Unicode filename support (via WDL win32_utf8 library)
+
 v0.35 (9/1/07):
   + fixed a bug in filename masking for subdirectories (doing !dir1\dir2\*;dir1\ didn't work properly)
 

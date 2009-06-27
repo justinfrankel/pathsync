@@ -24,6 +24,7 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define PATHSYNC_VER "v0.36"
 
 #include <windows.h>
 #include <commctrl.h>
@@ -38,11 +39,14 @@
 #include "../WDL/ptrlist.h"
 #include "../WDL/wdlstring.h"
 #include "../WDL/dirscan.h"
+#include "../WDL/fileread.h"
+#include "../WDL/filewrite.h"
 
 #include "../WDL/wingui/wndsize.h"
 #include "fnmatch.h"
 
-#define PATHSYNC_VER "v0.35"
+#include "../WDL/win32_utf8.h"
+
 
 HINSTANCE g_hInstance;
 
@@ -90,7 +94,7 @@ public:
   ~dirItem() { }
 
   WDL_String relativeFileName;
-  ULARGE_INTEGER fileSize;
+  WDL_INT64 fileSize;
   FILETIME lastWriteTime;
 
   int refcnt;
@@ -130,7 +134,7 @@ HWND g_dlg = NULL;
 int g_lasttraypercent = -1;
 int g_throttle,g_throttlespd=1024;
 DWORD g_throttle_sttime;
-__int64 g_throttle_bytes;
+WDL_INT64 g_throttle_bytes;
 int g_numfilesindir;
 
 const int endislist[]={IDC_STATS,IDC_PATH1,IDC_PATH2,IDC_BROWSE1,IDC_BROWSE2,IDC_IGNORE_SIZE,IDC_IGNORE_DATE,IDC_IGNORE_MISSLOCAL,IDC_IGNORE_MISSREMOTE,IDC_DEFBEHAVIOR,IDC_LOG,IDC_LOGPATH,IDC_LOGBROWSE, IDC_LOCAL_LABEL, IDC_REMOTE_LABEL, IDC_DEFACTIONLABEL, IDC_LOGFILENAMELABEL, IDC_IGNORE_LABEL, IDC_INCLUDE_LABEL, IDC_INCLUDE_FILES, IDC_MASKHELP, IDC_SYNC_FOLDERS};
@@ -182,7 +186,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 BOOL WINAPI diffToolProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void EnableOrDisableLoggingControls(HWND hwndDlg);
 
-void format_size_string(__int64 size, char *str)
+void format_size_string(WDL_INT64 size, char *str)
 {
   if (size < 1024) sprintf(str,"%u bytes",(int)size);//BU 'bytes' is more self-explanatory than 'B'
   else if (size < 1048576) sprintf(str,"%.1lf kB",(double) size / 1024.0);//BU kB is more correct
@@ -237,13 +241,12 @@ void LogMessage(const char * pStr)
     }
 }
 
-__int64 m_total_copy_size = 0;
+WDL_INT64 m_total_copy_size = 0;
 
 void calcStats(HWND hwndDlg)
 {
-  ULARGE_INTEGER totalbytescopy;
+  WDL_INT64 totalbytescopy=0;
   int totalfilesdelete=0,totalfilescopy=0;
-  totalbytescopy.QuadPart=0;
   int x,l=ListView_GetItemCount(m_listview);
   for (x = 0; x < l; x ++)
   {
@@ -263,7 +266,7 @@ void calcStats(HWND hwndDlg)
       if (its[!isSend])
       {
         totalfilescopy++;
-        totalbytescopy.QuadPart += its[!isSend]->fileSize.QuadPart;
+        totalbytescopy += its[!isSend]->fileSize;
       }
       else // delete
       {
@@ -277,7 +280,7 @@ void calcStats(HWND hwndDlg)
   if (totalfilescopy)
   {
     char tmp[128];
-    format_size_string(totalbytescopy.QuadPart,tmp);
+    format_size_string(totalbytescopy,tmp);
     sprintf(buf+strlen(buf),"copy %s in %d file%s",tmp,totalfilescopy,totalfilescopy==1?"":"s");
   }
   if (totalfilesdelete)
@@ -298,7 +301,7 @@ void calcStats(HWND hwndDlg)
 
   strcat(buf," (Right click on items to change their actions.)");//BU
   SetDlgItemText(hwndDlg,IDC_STATS,buf);
-  m_total_copy_size=totalbytescopy.QuadPart;
+  m_total_copy_size=totalbytescopy;
 }
 
 void set_current_settings_file(HWND hwndDlg, char *fn)
@@ -608,6 +611,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         SetClassLong(hwndDlg,GCL_HICON,(long)icon);
         if (g_systray) systray_add(hwndDlg, 0, icon, "PathSync");
         m_listview=GetDlgItem(hwndDlg,IDC_LIST1);
+        
+        WDL_UTF8_HookListView(m_listview);
+
         {
           LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,270,"Filename"};
           ListView_InsertColumn(m_listview,COL_FILENAME,&lvc);
@@ -1321,7 +1327,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                         dirItem *di=new dirItem;
                         di->relativeFileName.Set(relname.Get());
           
-                        di->fileSize.LowPart = di->fileSize.HighPart = 0;
+                        di->fileSize = 0;
                         di->lastWriteTime.dwLowDateTime = di->lastWriteTime.dwHighDateTime = 0;
           
                         m_files[x].Add(di);
@@ -1332,7 +1338,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                       dirItem *di=new dirItem;
                       di->relativeFileName.Set(relname.Get());
 
-                      di->fileSize.LowPart = m_curscanner[x].GetCurrentFileSize(&di->fileSize.HighPart);
+                      DWORD hw = 0;
+                      di->fileSize = m_curscanner[x].GetCurrentFileSize(&hw);
+                      di->fileSize |= (((WDL_UINT64)hw)<<32);
+
                       m_curscanner[x].GetCurrentLastWriteTime(&di->lastWriteTime);
 
                       m_files[x].Add(di);
@@ -1420,7 +1429,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     {
                       // no local size
                       char tmp[1024];
-                      format_size_string((*p)->fileSize.QuadPart, tmp);//BU
+                      format_size_string((*p)->fileSize, tmp);//BU
                       ListView_SetItemText(m_listview,x,COL_REMOTESIZE,tmp);//BU
                     }
                   }
@@ -1428,9 +1437,9 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 else 
                 {
                   (*res)->refcnt++;
-                  ULARGE_INTEGER fta=*(ULARGE_INTEGER *)&(*p)->lastWriteTime;
-                  ULARGE_INTEGER ftb=*(ULARGE_INTEGER *)&(*res)->lastWriteTime;
-                  __int64 datediff = fta.QuadPart - ftb.QuadPart;
+                  WDL_UINT64 fta=*(WDL_UINT64 *)&(*p)->lastWriteTime;
+                  WDL_UINT64 ftb=*(WDL_UINT64 *)&(*res)->lastWriteTime;
+                  WDL_INT64 datediff = fta - ftb;
                   if (datediff < 0) datediff=-datediff;
 
                   // int dateMatch = datediff < 10000000 || (g_ignflags & 2); // if difference is less than 1s, they are equal
@@ -1444,17 +1453,17 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     int y;
                     for (y = 1; y <= 2 && !dateMatch; y ++) // if 1 or 2 hours off, precisely, then DST related nonsense
                     {
-                      __int64 l = datediff - y*36000000000i64;
+                      WDL_INT64 l = datediff - y*36000000000i64;
                       dateMatch = l < 10000000 && l > -10000000;
                     }
                   }
 
                   // BU added this so files with no dates will match up on NTFS vs FAT32
-                  if (fta.HighPart <= 0x01a8e7f0 && ftb.HighPart <= 0x01a8e7f0) { // both are pre 1980
+                  if ((fta>>32) <= 0x01a8e7f0 && (ftb>>32) <= 0x01a8e7f0) { // both are pre 1980
                     dateMatch = 1;
                   }
 
-                  int sizeMatch = ((*p)->fileSize.QuadPart == (*res)->fileSize.QuadPart) || (g_ignflags & 1);
+                  int sizeMatch = ((*p)->fileSize == (*res)->fileSize) || (g_ignflags & 1);
                   if (!sizeMatch || !dateMatch)
                   {
                     int x=ListView_GetItemCount(m_listview);
@@ -1469,7 +1478,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                     if (!dateMatch)
                     {
-                      if (fta.QuadPart > ftb.QuadPart) 
+                      if (fta > ftb) 
                       {
                         datedesc="Remote Newer";
                       }
@@ -1480,7 +1489,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                     if (!sizeMatch)
                     {
-                      if ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart) 
+                      if ((*p)->fileSize > (*res)->fileSize) 
                       {
                         sizedesc="Remote Larger";
                       }
@@ -1507,11 +1516,11 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                     else
                       ListView_SetItemText(m_listview,insertpos,COL_ACTION,
-                            dateMatch ? ((*p)->fileSize.QuadPart > (*res)->fileSize.QuadPart ? ACTION_RECV:ACTION_SEND) : 
-                                         fta.QuadPart > ftb.QuadPart ? ACTION_RECV:ACTION_SEND);
-                    char tmp[1024]; format_size_string((*res)->fileSize.QuadPart, tmp);//BU
+                            dateMatch ? ((*p)->fileSize > (*res)->fileSize ? ACTION_RECV:ACTION_SEND) : 
+                                         fta > ftb ? ACTION_RECV:ACTION_SEND);
+                    char tmp[1024]; format_size_string((*res)->fileSize, tmp);//BU
                     ListView_SetItemText(m_listview,insertpos,COL_LOCALSIZE,tmp);//BU local size
-                    format_size_string((*p)->fileSize.QuadPart, tmp);//BU
+                    format_size_string((*p)->fileSize, tmp);//BU
                     ListView_SetItemText(m_listview,insertpos,COL_REMOTESIZE,tmp);//BU remote size
                   }
                 }
@@ -1555,7 +1564,7 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     // AD: don't set size value for folders
                     if (!isDirectory(lvi.pszText))
                     {
-                      char tmp[1024]; format_size_string((*p)->fileSize.QuadPart, tmp);//BU
+                      char tmp[1024]; format_size_string((*p)->fileSize, tmp);//BU
                       ListView_SetItemText(m_listview,x,COL_LOCALSIZE,tmp);//local size only BU
                     }
                   }
@@ -1611,12 +1620,12 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 char * skip_root(char *path)
 {
-  char *p = CharNext(path);
-  char *p2 = CharNext(p);
+  char *p = (path+1);
+  char *p2 = (p+1);
 
   if (*path && *p == ':' && *p2=='\\')
   {
-    return CharNext(p2);
+    return (p2+1);
   }
   else if (*path == '\\' && *p == '\\')
   {
@@ -1628,9 +1637,9 @@ char * skip_root(char *path)
       {
         if (!*p2)
           return NULL;
-        p2 = CharNext(p2);
+        p2 = (p2+1);
       }
-      p2 = CharNext(p2);
+      p2 = (p2+1);
     }
 
     return p2;
@@ -1641,6 +1650,14 @@ char * skip_root(char *path)
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdParam, int nShowCmd)
 {
+#ifdef _WIN32
+  if (GetVersion()<0x80000000) 
+  {
+    LPSTR s=GetCommandParametersUTF8();
+    if (s) lpszCmdParam=s;
+  }
+#endif
+
   g_hInstance=hInstance;
   InitCommonControls();
 
@@ -1734,7 +1751,7 @@ int m_copy_entrypos;
 int m_copy_done;
 int m_copy_deletes,m_copy_files;
 unsigned int m_copy_starttime;
-__int64 m_copy_bytestotalsofar;
+WDL_INT64 m_copy_bytestotalsofar;
 
 class fileCopier
 {
@@ -1742,8 +1759,9 @@ class fileCopier
     fileCopier()
     {
       m_filepos=0;
-      m_filesize.QuadPart=0;
-      m_srcFile=m_dstFile=INVALID_HANDLE_VALUE;
+      m_filesize=0;
+      m_srcFile=0;
+      m_dstFile=0;
       m_stt=GetTickCount();
       m_nud=0;
     }
@@ -1753,9 +1771,12 @@ class fileCopier
       m_fulldestfn.Set(dest);
       m_relfn.Set(relfn);
       
-      m_srcFile = CreateFile(src,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,NULL);
-      if (m_srcFile == INVALID_HANDLE_VALUE)
+      m_srcFile = new WDL_FileRead(src,1);
+      if (!m_srcFile->IsOpen())
       {
+        delete m_srcFile;
+        m_srcFile=0;
+
         WDL_String tmp("Error opening source: ");
         tmp.Append(src);
 
@@ -1768,8 +1789,9 @@ class fileCopier
 
       m_tmpdestfn.Set(dest);
       m_tmpdestfn.Append(".PSYN_TMP");
-      m_dstFile = CreateFile(m_tmpdestfn.Get(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,0,NULL);
-      if (m_dstFile == INVALID_HANDLE_VALUE)
+      m_dstFile = new WDL_FileWrite(m_tmpdestfn.Get(),0); // sync writes
+
+      if (!m_dstFile->IsOpen())
       {
         WDL_String tmp("Error opening tmpdest: ");
         tmp.Append(m_tmpdestfn.Get());
@@ -1779,7 +1801,7 @@ class fileCopier
         return -1;
       }
 
-      m_filesize.LowPart = GetFileSize(m_srcFile,&m_filesize.HighPart);
+      m_filesize = m_srcFile->GetSize();
       m_filepos=0;
 
       SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETRANGE,0,MAKELPARAM(0,10000));
@@ -1800,7 +1822,7 @@ class fileCopier
         p = skip_root(tmp.Get());
         if (p) for (;;)
         {
-          while (*p != '\\' && *p) p=CharNext(p);
+          while (*p != '\\' && *p) p=(p+1);
           if (!*p) break;
 
           char c=*p;
@@ -1815,8 +1837,8 @@ class fileCopier
     int run(HWND hwndParent) // return 1 when done
     {
       char buf[256*1024];
-      DWORD r;
-      if (!ReadFile(m_srcFile,buf,sizeof(buf),&r,NULL))
+      DWORD r = m_srcFile->Read(buf,sizeof(buf));
+      if (!r && m_srcFile->GetPosition() < m_srcFile->GetSize())
       {
         WDL_String tmp("Error reading: ");
         tmp.Append(m_relfn.Get());
@@ -1831,8 +1853,8 @@ class fileCopier
         m_filepos += r;
         g_throttle_bytes+=r;
 
-        DWORD or;
-        if (!WriteFile(m_dstFile,buf,r,&or,NULL) || or != r)
+        DWORD or = m_dstFile->Write(buf,r);
+        if (or != r)
         {
           WDL_String tmp("Error writing to: ");
           tmp.Append(m_relfn.Get());
@@ -1849,13 +1871,13 @@ class fileCopier
         int v = 0;
         unsigned int tm=now-m_stt;
         if (!tm) tm=1;
-        if (m_filesize.QuadPart) v=(int) ((m_filepos * 10000) / m_filesize.QuadPart);
+        if (m_filesize) v=(int) ((m_filepos * 10000) / m_filesize);
         SendDlgItemMessage(hwndParent,IDC_FILEPROGRESS,PBM_SETPOS,(WPARAM)v,0);
         {
           char text[512];
           char tmp1[128],tmp2[128],tmp3[128];
           format_size_string(m_filepos,tmp1);
-          format_size_string(m_filesize.QuadPart,tmp2);
+          format_size_string(m_filesize,tmp2);
           format_size_string((m_filepos * 1000)/tm,tmp3);
 
           sprintf(text,"%d%% - %s/%s @ %s/s",v/100,tmp1,tmp2,tmp3);
@@ -1865,30 +1887,36 @@ class fileCopier
 
       if (r < sizeof(buf)) // eof!
       {
-        if (m_filesize.QuadPart < 16384) g_throttle_bytes+=16384;
+        if (m_filesize < 16384) g_throttle_bytes+=16384;
         FILETIME ft;
-        GetFileTime(m_srcFile,NULL,NULL,&ft);
-        SetFileTime(m_dstFile,NULL,NULL,&ft);
-        CloseHandle(m_srcFile); m_srcFile=INVALID_HANDLE_VALUE;
-        CloseHandle(m_dstFile); m_dstFile=INVALID_HANDLE_VALUE;
+        GetFileTime(m_srcFile->GetHandle(),NULL,NULL,&ft);
+        SetFileTime(m_dstFile->GetHandle(),NULL,NULL,&ft);
+        delete m_srcFile;
+        m_srcFile=0;
+        delete m_dstFile;
+        m_dstFile=0;
 
 
         WDL_String destSave(m_fulldestfn.Get());
         destSave.Append(".PSYN_OLD");
         int err=0;
 
-        HANDLE hFE = CreateFile(m_fulldestfn.Get(),0,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL);
-        if (hFE != INVALID_HANDLE_VALUE) CloseHandle(hFE);
+        bool fileExists;
 
-        if (hFE == INVALID_HANDLE_VALUE || MoveFile(m_fulldestfn.Get(),destSave.Get()))
+        {
+          WDL_FileRead hFE(m_fulldestfn.Get(),0);
+          fileExists = hFE.IsOpen();
+        }
+
+        if (!fileExists || MoveFile(m_fulldestfn.Get(),destSave.Get()))
         {
           if (MoveFile(m_tmpdestfn.Get(),m_fulldestfn.Get()))
           {
-            if (hFE != INVALID_HANDLE_VALUE) DeleteFile(destSave.Get());
+            if (fileExists) DeleteFile(destSave.Get());
           }
           else 
           {
-            if (hFE != INVALID_HANDLE_VALUE) MoveFile(destSave.Get(),m_fulldestfn.Get()); // try and restore old
+            if (fileExists) MoveFile(destSave.Get(),m_fulldestfn.Get()); // try and restore old
             err=2;
           }
         }
@@ -1908,7 +1936,7 @@ class fileCopier
           unsigned int tm=max(now-m_stt, 1);
           char tmp2[128],tmp3[128];
             
-          format_size_string(m_filesize.QuadPart,tmp2);
+          format_size_string(m_filesize,tmp2);
           format_size_string((m_filepos * 1000)/tm,tmp3);
           sprintf(text,"%s @ %s/s %s", tmp2, tmp3, m_fulldestfn.Get());
           LogMessage(text);
@@ -1924,21 +1952,22 @@ class fileCopier
 
     ~fileCopier()
     {
-      if (m_dstFile != INVALID_HANDLE_VALUE) 
+      if (m_dstFile) 
       {
-        CloseHandle(m_dstFile);
+        delete m_dstFile;
         DeleteFile(m_tmpdestfn.Get());
       }
-      if (m_srcFile != INVALID_HANDLE_VALUE) CloseHandle(m_srcFile);
+      delete m_srcFile;
       
     }
 
     WDL_String m_tmpdestfn;
 
     WDL_String m_fullsrcfn, m_fulldestfn, m_relfn;
-    __int64 m_filepos;
-    ULARGE_INTEGER m_filesize;
-    HANDLE m_srcFile, m_dstFile;
+    WDL_INT64 m_filepos;
+    WDL_INT64 m_filesize;
+    WDL_FileRead *m_srcFile;
+    WDL_FileWrite *m_dstFile;
     unsigned int m_stt, m_nud;
 };
 fileCopier *m_copy_curcopy;
@@ -1954,7 +1983,7 @@ void updateXferStatus(HWND hwndDlg)
   int v= (int) ((m_copy_bytestotalsofar * 10000) / m_total_copy_size);
 
 
-  __int64 bytesleft = m_total_copy_size - m_copy_bytestotalsofar;
+  WDL_INT64 bytesleft = m_total_copy_size - m_copy_bytestotalsofar;
   int pred_t = 0;
   if (m_copy_bytestotalsofar) pred_t = (int) ((t/1000) * m_total_copy_size / m_copy_bytestotalsofar);
 
@@ -2031,6 +2060,9 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       if (GetPrivateProfileInt("config","accopy",0,m_inifile)) CheckDlgButton(hwndDlg,IDC_CHECK1,BST_CHECKED);
       if (g_throttle) CheckDlgButton(hwndDlg,IDC_CHECK2,BST_CHECKED);     
     
+      // IDC_LIST1 is a list box, not a listview, so don't do this.
+      //      WDL_UTF8_HookListView(GetDlgItem(hwndDlg,IDC_LIST1));
+
       SetDlgItemInt(hwndDlg,IDC_EDIT1,g_throttlespd,FALSE);
       m_copy_starttime=GetTickCount();
       m_next_statusupdate=0;
