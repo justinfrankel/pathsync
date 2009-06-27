@@ -623,6 +623,10 @@ BOOL WINAPI mainDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
         
         WDL_UTF8_HookListView(m_listview);
 
+#ifdef _WIN32
+          ListView_SetExtendedListViewStyleEx(m_listview,LVS_EX_FULLROWSELECT ,LVS_EX_FULLROWSELECT);
+#endif
+
         {
           LVCOLUMN lvc={LVCF_TEXT|LVCF_WIDTH,0,270,"Filename"};
           ListView_InsertColumn(m_listview,COL_FILENAME,&lvc);
