@@ -8,8 +8,7 @@
 ;--------------------------------
 ;General
 
-!define VER_MAJOR 0
-!define VER_MINOR 35
+!searchparse /file pathsync.cpp '#define PATHSYNC_VER "v' VER_MAJOR '.' VER_MINOR '"'
 
 SetCompressor lzma
 
@@ -110,10 +109,17 @@ Section "PathSync Source Code"
   File ..\WDL\dirscan.h
   File ..\WDL\ptrlist.h
   File ..\WDL\heapbuf.h
+  File ..\WDL\fileread.h
+  File ..\WDL\filewrite.h
   File ..\WDL\wdlstring.h
+  File ..\WDL\wdltypes.h
+  File ..\WDL\win32_utf8.h
+  File ..\WDL\win32_utf8.c
   SetOutPath $INSTDIR\Source\WDL\WinGUI
   File ..\WDL\wingui\wndsize.h
   File ..\WDL\wingui\wndsize.cpp 
+  File ..\WDL\wingui\virtwnd.h
+  File ..\WDL\wingui\virtwnd-skin.h
 SectionEnd
 
 
