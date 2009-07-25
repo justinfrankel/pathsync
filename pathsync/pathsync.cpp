@@ -1788,7 +1788,8 @@ class fileCopier
       m_fulldestfn.Set(dest);
       m_relfn.Set(relfn);
       
-      m_srcFile = new WDL_FileRead(src,1);
+#define BIG_BUFSIZE (1024*1024)
+      m_srcFile = new WDL_FileRead(src,1,BIG_BUFSIZE,8);
       if (!m_srcFile->IsOpen())
       {
         delete m_srcFile;
@@ -1806,7 +1807,7 @@ class fileCopier
 
       m_tmpdestfn.Set(dest);
       m_tmpdestfn.Append(".PSYN_TMP");
-      m_dstFile = new WDL_FileWrite(m_tmpdestfn.Get(),0); // sync writes
+      m_dstFile = new WDL_FileWrite(m_tmpdestfn.Get(),0,BIG_BUFSIZE); // sync writes
 
       if (!m_dstFile->IsOpen())
       {
@@ -1853,7 +1854,7 @@ class fileCopier
 
     int run(HWND hwndParent) // return 1 when done
     {
-      char buf[256*1024];
+      static char buf[128*1024];
       DWORD r = m_srcFile->Read(buf,sizeof(buf));
       if (!r && m_srcFile->GetPosition() < m_srcFile->GetSize())
       {
@@ -2109,7 +2110,7 @@ BOOL WINAPI copyFilesProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
       {       
         unsigned int start_t=GetTickCount();
         unsigned int now;
-        while ((now=GetTickCount()) - start_t < 100)
+        while ((now=GetTickCount()) - start_t < 150)
         {
           if (g_throttle)
           {
