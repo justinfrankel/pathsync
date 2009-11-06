@@ -1,3 +1,5 @@
+#define PATHSYNC_VER "v0.4pre-utf8"
+
 /*
     PathSync - pathsync.cpp
     Copyright (C) 2004-2007 Cockos Incorporated and others
@@ -24,7 +26,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#define PATHSYNC_VER "v0.36"
 
 #include <windows.h>
 #include <commctrl.h>
