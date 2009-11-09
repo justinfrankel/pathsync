@@ -427,8 +427,19 @@ int test_file_pattern(char *file, int is_dir)
 
       int l=strlen(file);
       while (l>0 && (file[l-1]=='\\'||file[l-1]=='/')) l--;
-      if (!strnicmp(p,file,l) && (!p[l] || !strcmp(p+l,"\\") || !strcmp(p+l,"\\*")
-            || !strcmp(p+l,"/") || !strcmp(p+l,"/*"))) return !isnot; // if match of directory
+      if (!strnicmp(p,file,l))
+      {
+        if (!p[l] || p[l]=='\\' || p[l] == '/')
+        {
+          if (!isnot) return 1;
+
+          // not, so make sure it ends either in 0 \ or \*
+          if (!p[l] || 
+              !p[l+1] ||
+              !strcmp(p+l+1,"*"))
+                  return 0;
+        }
+      }
     }
 
     if (fnmatch(p, file, 0) == 0) return !isnot;
