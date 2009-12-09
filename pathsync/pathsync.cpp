@@ -154,6 +154,18 @@ bool isDirectory(const char * filename)
   return c == '\\' || c == '/';
 }
 
+const char *stristr(const char *a, const char *b)
+{
+  int bl = strlen(b);
+  while (*a)
+  {
+    if (!strnicmp(a,b,bl)) return a;
+    a++;
+  }
+  return NULL;
+
+}
+
 int filenameCompareFunction(dirItem **a, dirItem **b)
 {
   const char * pa = (*a)->relativeFileName.Get();
@@ -166,11 +178,11 @@ int filenameCompareFunction(dirItem **a, dirItem **b)
     // AD: Ensure that parent directories sort after the files
     // and subdirectories within them. This avoids problems when
     // deleting parent directories.
-    if (isDirectory(pa) && strstr(pb, pa) == pb)
+    if (isDirectory(pa) && !strnicmp(pb, pa, strlen(pa))) // JF: simplified logic and made better case insensitive
     {
       result = 1;
     }
-    else if (isDirectory(pb) && strstr(pa, pb ) == pa)
+    else if (isDirectory(pb) && !strnicmp(pa, pb, strlen(pb)))
     {
       result = -1;
     }
