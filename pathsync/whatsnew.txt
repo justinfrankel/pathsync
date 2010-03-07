@@ -1,9 +1,9 @@
 PathSync version history:
 
-v0.36 (6/27/09):
+v0.4BETA (3/6/2010)
+  + Preliminary unicode filename support (via UTF-8)
   + Work to prepare for OS X support
   + Uses more of WDL for file read/write
-  + Unicode filename support (via WDL win32_utf8 library)
   + Fixed bug in fn matching for directories
 
 v0.35 (9/1/07):

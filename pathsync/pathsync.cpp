@@ -1,4 +1,4 @@
-#define PATHSYNC_VER "v0.4pre-utf8"
+#define PATHSYNC_VER "v0.4BETA"
 
 /*
     PathSync - pathsync.cpp
