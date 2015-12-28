@@ -1,5 +1,9 @@
 PathSync version history:
 
+v0.4BETA2 (12/28/2015)
+  + Updated to latest WDL
+  + Updated installer (NSIS 2.5.0 DLL hijack fixes)
+
 v0.4BETA (3/6/2010)
   + Preliminary unicode filename support (via UTF-8)
   + Work to prepare for OS X support

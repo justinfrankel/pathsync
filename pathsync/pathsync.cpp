@@ -1,8 +1,8 @@
-#define PATHSYNC_VER "v0.4BETA"
+#define PATHSYNC_VER "v0.4BETA2"
 
 /*
     PathSync - pathsync.cpp
-    Copyright (C) 2004-2007 Cockos Incorporated and others
+    Copyright (C) 2004-2015 Cockos Incorporated and others
 
     Contributors:
       Alan Davies (alan@goatpunch.com)
